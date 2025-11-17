@@ -10,9 +10,10 @@
     <el-container>
       <!-- 侧边栏 -->
       <el-aside width="200px" style="background-color: #D3DCE6; padding: 20px;">
-        <h2 style="margin-top: 0;">工作台</h2>
+        <h2 style="margin-top: 0;">菜单</h2>
         <!-- 可添加侧边栏菜单示例 -->
         <el-menu :default-active="activeMenu" class="el-menu-vertical-demo" @select="handleMenuSelect">
+          <el-menu-item index="workspace">工作台</el-menu-item>
           <el-menu-item index="knowledge-base">知识库管理</el-menu-item>
           <el-menu-item index="rule-base">规则库管理</el-menu-item>
           <el-menu-item index="model-base">模型管理</el-menu-item>
@@ -43,103 +44,19 @@ export default {
   computed: {
     activeMenu() {
       // 根据当前路由设置激活的菜单项
-      const routeName = this.$route.name
-      if (routeName === 'knowledge-base') {
-        return 'knowledge-base'
-      }
-      return '1'
+      return this.$route.name || 'workspace'
     }
   },
   methods: {
     handleMenuSelect(index) {
       // 根据菜单项索引跳转到对应路由
-      if (index === 'knowledge-base') {
-        // 检查是否已经在目标路由，避免重复导航
-        if (this.$route.name !== 'knowledge-base') {
-          this.$router.push({ name: 'knowledge-base' }).catch(err => {
-            // 忽略重复导航错误
-            if (err.name !== 'NavigationDuplicated') {
-              throw err
-            }
-          })
-        }
-      }
-      if (index === 'rule-base') {
-        // 检查是否已经在目标路由，避免重复导航
-        if (this.$route.name !== 'rule-base') {
-          this.$router.push({ name: 'rule-base' }).catch(err => {
-            // 忽略重复导航错误
-            if (err.name !== 'NavigationDuplicated') {
-              throw err
-            }
-          })
-        }
-      }
-      if (index === 'model-base') {
-        // 检查是否已经在目标路由，避免重复导航
-        if (this.$route.name !== 'model-base') {
-          this.$router.push({ name: 'model-base' }).catch(err => {
-            // 忽略重复导航错误
-            if (err.name !== 'NavigationDuplicated') {
-              throw err
-            }
-          })
-        }
-      }
-      if (index === 'task-base') {
-        // 检查是否已经在目标路由，避免重复导航
-        if (this.$route.name !== 'task-base') {
-          this.$router.push({ name: 'task-base' }).catch(err => {
-            // 忽略重复导航错误
-            if (err.name !== 'NavigationDuplicated') {
-              throw err
-            }
-          })
-        }
-      }
-      if (index === 'warning-base') {
-        // 检查是否已经在目标路由，避免重复导航
-        if (this.$route.name !== 'warning-base') {
-          this.$router.push({ name: 'warning-base' }).catch(err => {
-            // 忽略重复导航错误
-            if (err.name !== 'NavigationDuplicated') {
-              throw err
-            }
-          })
-        }
-      }
-      if (index === 'data-base') {
-        // 检查是否已经在目标路由，避免重复导航
-        if (this.$route.name !== 'data-base') {
-          this.$router.push({ name: 'data-base' }).catch(err => {
-            // 忽略重复导航错误
-            if (err.name !== 'NavigationDuplicated') {
-              throw err
-            }
-          })
-        }
-      }
-      if (index === 'log-base') {
-        // 检查是否已经在目标路由，避免重复导航
-        if (this.$route.name !== 'log-base') {
-          this.$router.push({ name: 'log-base' }).catch(err => {
-            // 忽略重复导航错误
-            if (err.name !== 'NavigationDuplicated') {
-              throw err
-            }
-          })
-        }
-      }
-      if (index === 'permission-base') {
-        // 检查是否已经在目标路由，避免重复导航
-        if (this.$route.name !== 'permission-base') {
-          this.$router.push({ name: 'permission-base' }).catch(err => {
-            // 忽略重复导航错误
-            if (err.name !== 'NavigationDuplicated') {
-              throw err
-            }
-          })
-        }
+      if (this.$route.name !== index) {
+        this.$router.push({ name: index }).catch(err => {
+          // 忽略重复导航错误
+          if (err.name !== 'NavigationDuplicated') {
+            throw err
+          }
+        })
       }
     }
   }

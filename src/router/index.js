@@ -1,6 +1,7 @@
 import Vue from 'vue'
 import VueRouter from 'vue-router'
 import Navigation from '../views/Navigation.vue'
+import WorkspaceView from '../components/WorkspaceView.vue'
 import RuleBaseView from '../components/RuleBaseView.vue'
 import KnowledgeBaseView from '../components/KnowledgeBaseView.vue'
 import TaskBaseView from '../components/TaskBaseView.vue'
@@ -16,8 +17,13 @@ const routes = [
   {
     path: '/',
     component: Navigation,
-    redirect: '/knowledge-base',
+    redirect: '/workspace',
     children: [
+      {
+        path: 'workspace',
+        name: 'workspace',
+        component: WorkspaceView
+      },
       {
         path: 'knowledge-base',
         name: 'knowledge-base',
