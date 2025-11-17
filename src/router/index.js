@@ -16,7 +16,7 @@ const routes = [
   {
     path: '/',
     component: Navigation,
-    redirect: '/home',
+    redirect: '/knowledge-base',
     children: [
       {
         path: 'knowledge-base',
