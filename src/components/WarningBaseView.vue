@@ -35,29 +35,31 @@
 
     <!-- 预警列表表格 -->
     <div class="table-section">
-      <el-table :data="warningList" style="width: 100%" border>
-        <el-table-column prop="taskId" label="任务ID" width="160"></el-table-column>
-        <el-table-column prop="taskName" label="任务名称" width="140"></el-table-column>
-        <el-table-column prop="completeTime" label="任务完成时间" width="160"></el-table-column>
-        <el-table-column prop="totalCount" label="预警总条数" width="110" align="center"></el-table-column>
-        <el-table-column prop="pendingFirstReview" label="待初审条数" width="110" align="center"></el-table-column>
-        <el-table-column prop="hospitalReview" label="医院复核条数" width="120" align="center"></el-table-column>
-        <el-table-column prop="pendingFinalReview" label="待终审条数" width="110" align="center"></el-table-column>
-        <el-table-column prop="finalReviewed" label="已终审条数" width="110" align="center"></el-table-column>
-        <el-table-column prop="confirmedViolation" label="明确违规条数" width="120" align="center"></el-table-column>
-        <el-table-column prop="positiveRate" label="阳性率" width="100" align="center">
-          <template slot-scope="scope">
-            <span :style="{ color: getPositiveRateColor(scope.row.positiveRate) }">
-              {{ scope.row.positiveRate }}
-            </span>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="100" fixed="right" align="center">
-          <template slot-scope="scope">
-            <el-button type="text" @click="handleView(scope.row)">查看</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+      <div class="table-wrapper">
+        <el-table :data="warningList" style="width: 100%; min-width: 1400px;" border>
+          <el-table-column prop="taskId" label="任务ID" min-width="180"></el-table-column>
+          <el-table-column prop="taskName" label="任务名称" min-width="160"></el-table-column>
+          <el-table-column prop="completeTime" label="任务完成时间" min-width="180"></el-table-column>
+          <el-table-column prop="totalCount" label="预警总条数" min-width="130" align="center"></el-table-column>
+          <el-table-column prop="pendingFirstReview" label="待初审条数" min-width="130" align="center"></el-table-column>
+          <el-table-column prop="hospitalReview" label="医院复核条数" min-width="140" align="center"></el-table-column>
+          <el-table-column prop="pendingFinalReview" label="待终审条数" min-width="130" align="center"></el-table-column>
+          <el-table-column prop="finalReviewed" label="已终审条数" min-width="130" align="center"></el-table-column>
+          <el-table-column prop="confirmedViolation" label="明确违规条数" min-width="140" align="center"></el-table-column>
+          <el-table-column prop="positiveRate" label="阳性率" min-width="120" align="center">
+            <template slot-scope="scope">
+              <span :style="{ color: getPositiveRateColor(scope.row.positiveRate), fontWeight: 'bold' }">
+                {{ scope.row.positiveRate }}
+              </span>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="120" fixed="right" align="center">
+            <template slot-scope="scope">
+              <el-button type="text" @click="handleView(scope.row)">查看</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
 
       <!-- 分页 -->
       <div class="pagination-section">
@@ -312,12 +314,31 @@ export default {
 
 .table-section {
   margin-top: 20px;
+  background-color: #fff;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+  padding: 20px;
 }
 
 .pagination-section {
   margin-top: 20px;
+  padding: 0 20px 20px;
   display: flex;
   justify-content: flex-end;
+}
+
+/* 表格样式优化 */
+.table-wrapper .el-table th {
+  background-color: #f5f7fa;
+  color: #303133;
+  font-weight: 600;
+}
+
+.table-wrapper .el-table td,
+.table-wrapper .el-table th {
+  padding: 12px 0;
 }
 
 .chart-section {

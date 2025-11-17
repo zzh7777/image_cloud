@@ -16,6 +16,7 @@
           <el-menu-item index="workspace">工作台</el-menu-item>
           <el-menu-item index="knowledge-base">知识库管理</el-menu-item>
           <el-menu-item index="rule-base">规则库管理</el-menu-item>
+          <el-menu-item index="database">数据库管理</el-menu-item>
           <el-menu-item index="model-base">模型管理</el-menu-item>
           <el-menu-item index="task-base">任务管理</el-menu-item>
           <el-menu-item index="warning-base">预警管理</el-menu-item>

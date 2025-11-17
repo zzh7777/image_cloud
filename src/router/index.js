@@ -4,6 +4,7 @@ import Navigation from '../views/Navigation.vue'
 import WorkspaceView from '../components/WorkspaceView.vue'
 import RuleBaseView from '../components/RuleBaseView.vue'
 import KnowledgeBaseView from '../components/KnowledgeBaseView.vue'
+import DatabaseManageView from '../components/DatabaseManageView.vue'
 import TaskBaseView from '../components/TaskBaseView.vue'
 import WarningBaseView from '../components/WarningBaseView.vue'
 import WarningDetailView from '../components/WarningDetailView.vue'
@@ -35,6 +36,11 @@ const routes = [
         path: 'rule-base',
         name: 'rule-base',
         component: RuleBaseView
+      },
+      {
+        path: 'database',
+        name: 'database',
+        component: DatabaseManageView
       },
       {
         path: 'model-base',

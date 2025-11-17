@@ -47,47 +47,49 @@
 
     <!-- 任务列表表格 -->
     <div class="table-section">
-      <el-table :data="taskList" style="width: 100%" border>
-        <el-table-column prop="taskId" label="任务ID" width="180"></el-table-column>
-        <el-table-column prop="taskName" label="任务名称" width="160"></el-table-column>
-        <el-table-column prop="modelName" label="调用模型" width="180"></el-table-column>
-        <el-table-column label="运行状态" width="100">
-          <template slot-scope="scope">
-            <el-tag
-              :type="scope.row.status === '运行中' ? 'success' : (scope.row.status === '待运行' ? 'warning' : 'info')"
-            >
-              {{ scope.row.status }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="dataCount" label="累计监测数据条数" width="150"></el-table-column>
-        <el-table-column prop="createTime" label="创建时间" width="160"></el-table-column>
-        <el-table-column prop="creator" label="创建人" width="100"></el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
-          <template slot-scope="scope">
-            <!-- 运行中状态：停止、查看 -->
-            <template v-if="scope.row.status === '运行中'">
-              <el-button type="text" @click="handleStop(scope.row)">停止</el-button>
-              <el-divider direction="vertical"></el-divider>
-              <el-button type="text" @click="handleView(scope.row)">查看</el-button>
+      <div class="table-wrapper">
+        <el-table :data="taskList" style="width: 100%; min-width: 1200px;" border>
+          <el-table-column prop="taskId" label="任务ID" min-width="180"></el-table-column>
+          <el-table-column prop="taskName" label="任务名称" min-width="180"></el-table-column>
+          <el-table-column prop="modelName" label="调用模型" min-width="200"></el-table-column>
+          <el-table-column label="运行状态" min-width="120" align="center">
+            <template slot-scope="scope">
+              <el-tag
+                :type="scope.row.status === '运行中' ? 'success' : (scope.row.status === '待运行' ? 'warning' : 'info')"
+              >
+                {{ scope.row.status }}
+              </el-tag>
             </template>
-            <!-- 待运行状态：开始、编辑、删除 -->
-            <template v-else-if="scope.row.status === '待运行'">
-              <el-button type="text" @click="handleStart(scope.row)">开始</el-button>
-              <el-divider direction="vertical"></el-divider>
-              <el-button type="text" @click="handleEdit(scope.row)">编辑</el-button>
-              <el-divider direction="vertical"></el-divider>
-              <el-button type="text" @click="handleDelete(scope.row)">删除</el-button>
+          </el-table-column>
+          <el-table-column prop="dataCount" label="累计监测数据条数" min-width="180" align="center"></el-table-column>
+          <el-table-column prop="createTime" label="创建时间" min-width="180"></el-table-column>
+          <el-table-column prop="creator" label="创建人" min-width="120"></el-table-column>
+          <el-table-column label="操作" width="220" fixed="right" align="center">
+            <template slot-scope="scope">
+              <!-- 运行中状态：停止、查看 -->
+              <template v-if="scope.row.status === '运行中'">
+                <el-button type="text" @click="handleStop(scope.row)">停止</el-button>
+                <el-divider direction="vertical"></el-divider>
+                <el-button type="text" @click="handleView(scope.row)">查看</el-button>
+              </template>
+              <!-- 待运行状态：开始、编辑、删除 -->
+              <template v-else-if="scope.row.status === '待运行'">
+                <el-button type="text" @click="handleStart(scope.row)">开始</el-button>
+                <el-divider direction="vertical"></el-divider>
+                <el-button type="text" @click="handleEdit(scope.row)">编辑</el-button>
+                <el-divider direction="vertical"></el-divider>
+                <el-button type="text" @click="handleDelete(scope.row)">删除</el-button>
+              </template>
+              <!-- 已结束状态：查看、删除 -->
+              <template v-else>
+                <el-button type="text" @click="handleView(scope.row)">查看</el-button>
+                <el-divider direction="vertical"></el-divider>
+                <el-button type="text" @click="handleDelete(scope.row)">删除</el-button>
+              </template>
             </template>
-            <!-- 已结束状态：查看、删除 -->
-            <template v-else>
-              <el-button type="text" @click="handleView(scope.row)">查看</el-button>
-              <el-divider direction="vertical"></el-divider>
-              <el-button type="text" @click="handleDelete(scope.row)">删除</el-button>
-            </template>
-          </template>
-        </el-table-column>
-      </el-table>
+          </el-table-column>
+        </el-table>
+      </div>
 
       <!-- 分页 -->
       <div class="pagination-section">
@@ -472,11 +474,30 @@ export default {
 
 .table-section {
   margin-top: 20px;
+  background-color: #fff;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+  padding: 20px;
 }
 
 .pagination-section {
   margin-top: 20px;
+  padding: 0 20px 20px;
   display: flex;
   justify-content: flex-end;
+}
+
+/* 表格样式优化 */
+.table-wrapper .el-table th {
+  background-color: #f5f7fa;
+  color: #303133;
+  font-weight: 600;
+}
+
+.table-wrapper .el-table td,
+.table-wrapper .el-table th {
+  padding: 12px 0;
 }
 </style>

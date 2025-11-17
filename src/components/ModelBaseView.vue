@@ -47,36 +47,38 @@
 
     <!-- 模型列表表格 -->
     <div class="table-section">
-      <el-table :data="modelList" style="width: 100%" border>
-        <el-table-column prop="modelName" label="模型名称" width="200"></el-table-column>
-        <el-table-column prop="modelType" label="模型类型" width="120"></el-table-column>
-        <el-table-column prop="modelVersion" label="模型版本" width="100"></el-table-column>
-        <el-table-column prop="createTime" label="创建时间" width="160"></el-table-column>
-        <el-table-column prop="creator" label="创建人" width="100"></el-table-column>
-        <el-table-column label="运行状态" width="100">
-          <template slot-scope="scope">
-            <el-tag :type="scope.row.status === '启用' ? 'success' : 'info'">
-              {{ scope.row.status }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="150" fixed="right">
-          <template slot-scope="scope">
-            <el-button
-              v-if="scope.row.status === '启用'"
-              type="text"
-              @click="handleToggleStatus(scope.row)"
-            >禁用</el-button>
-            <el-button
-              v-else
-              type="text"
-              @click="handleToggleStatus(scope.row)"
-            >启用</el-button>
-            <el-divider direction="vertical"></el-divider>
-            <el-button type="text" @click="handleEdit(scope.row)">编辑</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+      <div class="table-wrapper">
+        <el-table :data="modelList" style="width: 100%; min-width: 1000px;" border>
+          <el-table-column prop="modelName" label="模型名称" min-width="200"></el-table-column>
+          <el-table-column prop="modelType" label="模型类型" min-width="150"></el-table-column>
+          <el-table-column prop="modelVersion" label="模型版本" min-width="120"></el-table-column>
+          <el-table-column prop="createTime" label="创建时间" min-width="180"></el-table-column>
+          <el-table-column prop="creator" label="创建人" min-width="120"></el-table-column>
+          <el-table-column label="运行状态" min-width="120" align="center">
+            <template slot-scope="scope">
+              <el-tag :type="scope.row.status === '启用' ? 'success' : 'info'">
+                {{ scope.row.status }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="180" fixed="right" align="center">
+            <template slot-scope="scope">
+              <el-button
+                v-if="scope.row.status === '启用'"
+                type="text"
+                @click="handleToggleStatus(scope.row)"
+              >禁用</el-button>
+              <el-button
+                v-else
+                type="text"
+                @click="handleToggleStatus(scope.row)"
+              >启用</el-button>
+              <el-divider direction="vertical"></el-divider>
+              <el-button type="text" @click="handleEdit(scope.row)">编辑</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
 
       <!-- 分页 -->
       <div class="pagination-section">
@@ -532,10 +534,28 @@ export default {
   background-color: #fff;
 }
 
+.table-wrapper {
+  overflow-x: auto;
+  padding: 20px;
+}
+
 .pagination-section {
   margin-top: 20px;
+  padding: 0 20px 20px;
   display: flex;
   justify-content: flex-end;
+}
+
+/* 表格样式优化 */
+.table-wrapper .el-table th {
+  background-color: #f5f7fa;
+  color: #303133;
+  font-weight: 600;
+}
+
+.table-wrapper .el-table td,
+.table-wrapper .el-table th {
+  padding: 12px 0;
 }
 
 /* 规则穿梭框 */
