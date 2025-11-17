@@ -1,4 +1,5 @@
 # image_cloud
+<<<<<<< HEAD
 
 ## Project setup
 ```
@@ -22,3 +23,6 @@ npm run lint
 
 ### Customize configuration
 See [Configuration Reference](https://cli.vuejs.org/config/).
+=======
+image_cloud
+>>>>>>> 7d87738d474557b07018d247485a85bd72da3a97
