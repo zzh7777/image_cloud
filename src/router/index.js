@@ -6,6 +6,8 @@ import RuleBaseView from '../components/RuleBaseView.vue'
 import KnowledgeBaseView from '../components/KnowledgeBaseView.vue'
 import TaskBaseView from '../components/TaskBaseView.vue'
 import WarningBaseView from '../components/WarningBaseView.vue'
+import WarningDetailView from '../components/WarningDetailView.vue'
+import WarningRecordView from '../components/WarningRecordView.vue'
 import DataBaseView from '../components/DataBaseView.vue'
 import LogBaseView from '../components/LogBaseView.vue'
 import PermissionBaseView from '../components/PermissionBaseView.vue'
@@ -48,6 +50,16 @@ const routes = [
         path: 'warning-base',
         name: 'warning-base',
         component: WarningBaseView
+      },
+      {
+        path: 'warning-detail',
+        name: 'warning-detail',
+        component: WarningDetailView
+      },
+      {
+        path: 'warning-record',
+        name: 'warning-record',
+        component: WarningRecordView
       },
       {
         path: 'data-base',

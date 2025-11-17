@@ -235,8 +235,14 @@ export default {
       this.handleQuery()
     },
     handleView(row) {
-      this.viewWarning = { ...row }
-      this.viewDialogVisible = true
+      // 跳转到预警详情列表页面
+      this.$router.push({
+        path: '/warning-detail',
+        query: {
+          taskId: row.taskId,
+          taskName: row.taskName
+        }
+      })
     },
     handleExport() {
       this.$message.success('数据导出功能开发中...')
