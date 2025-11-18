@@ -1,10 +1,14 @@
 import Vue from 'vue'
 import VueRouter from 'vue-router'
 import Navigation from '../views/Navigation.vue'
+import WorkspaceView from '../components/WorkspaceView.vue'
 import RuleBaseView from '../components/RuleBaseView.vue'
 import KnowledgeBaseView from '../components/KnowledgeBaseView.vue'
+import DatabaseManageView from '../components/DatabaseManageView.vue'
 import TaskBaseView from '../components/TaskBaseView.vue'
 import WarningBaseView from '../components/WarningBaseView.vue'
+import WarningDetailView from '../components/WarningDetailView.vue'
+import WarningRecordView from '../components/WarningRecordView.vue'
 import DataBaseView from '../components/DataBaseView.vue'
 import LogBaseView from '../components/LogBaseView.vue'
 import PermissionBaseView from '../components/PermissionBaseView.vue'
@@ -16,8 +20,13 @@ const routes = [
   {
     path: '/',
     component: Navigation,
-    redirect: '/knowledge-base',
+    redirect: '/workspace',
     children: [
+      {
+        path: 'workspace',
+        name: 'workspace',
+        component: WorkspaceView
+      },
       {
         path: 'knowledge-base',
         name: 'knowledge-base',
@@ -27,6 +36,11 @@ const routes = [
         path: 'rule-base',
         name: 'rule-base',
         component: RuleBaseView
+      },
+      {
+        path: 'database',
+        name: 'database',
+        component: DatabaseManageView
       },
       {
         path: 'model-base',
@@ -42,6 +56,16 @@ const routes = [
         path: 'warning-base',
         name: 'warning-base',
         component: WarningBaseView
+      },
+      {
+        path: 'warning-detail',
+        name: 'warning-detail',
+        component: WarningDetailView
+      },
+      {
+        path: 'warning-record',
+        name: 'warning-record',
+        component: WarningRecordView
       },
       {
         path: 'data-base',
