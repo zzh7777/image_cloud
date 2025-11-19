@@ -222,8 +222,9 @@ export default {
               institutionType: this.loginForm.institutionType
             })
             this.loading = false
-            // 跳转到主页
-            this.$router.push('/')
+            // 跳转到主页或之前尝试访问的页面
+            const redirect = this.$route.query.redirect || '/main'
+            this.$router.push(redirect)
             this.$message.success('登录成功')
           }, 1000)
         } else {

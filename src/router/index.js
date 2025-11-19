@@ -33,8 +33,16 @@ const routes = [
   },
   {
     path: '/',
+    redirect: '/login'
+  },
+  {
+    path: '/workspace',
+    redirect: '/main/workspace'
+  },
+  {
+    path: '/main',
     component: Navigation,
-    redirect: '/workspace',
+    redirect: '/main/workspace',
     meta: { requiresAuth: true },
     children: [
       {
@@ -115,14 +123,26 @@ router.beforeEach((to, from, next) => {
   // 初始化用户信息
   store.commit('initUser')
   
-  if (to.meta.requiresAuth) {
+  // 定义需要认证的路径前缀
+  const protectedPaths = ['/main', '/workspace']
+  const isProtectedPath = protectedPaths.some(path => to.path.startsWith(path))
+  
+  // 检查路由是否需要认证（包括父路由）
+  const requiresAuth = to.matched.some(record => record.meta.requiresAuth) || isProtectedPath
+  
+  if (requiresAuth) {
     if (store.getters.isLoggedIn) {
       next()
     } else {
-      next('/login')
+      // 未登录用户尝试访问受保护页面，重定向到登录页
+      next({
+        path: '/login',
+        query: { redirect: to.fullPath } // 保存原始路径，登录后可以跳转回去
+      })
     }
   } else if ((to.path === '/login' || to.path === '/register') && store.getters.isLoggedIn) {
-    next('/')
+    // 已登录用户访问登录/注册页，重定向到主页
+    next('/main')
   } else {
     next()
   }
