@@ -8,6 +8,9 @@ import store from './store'
 Vue.config.productionTip = false
 Vue.use(ElementUI)
 
+// 初始化用户信息
+store.commit('initUser')
+
 new Vue({
   el: '#app',
   router,
