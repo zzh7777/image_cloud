@@ -12,6 +12,7 @@
           ref="basicInfoForm" 
           :model="basicInfo" 
           :rules="basicInfoRules" 
+          class="basic-info-form"
           label-width="100px"
           label-position="left"
         >
@@ -95,6 +96,7 @@
           ref="passwordForm" 
           :model="passwordInfo" 
           :rules="passwordRules" 
+          class="basic-info-form"
           label-width="100px"
           label-position="left"
         >
@@ -149,14 +151,14 @@ export default {
       },
       basicInfoRules: {
         name: [
-          { required: true, message: '请输入姓名', trigger: 'blur' }
+          // { required: true, message: '请输入姓名', trigger: 'blur' }
         ],
         phone: [
-          { required: true, message: '请输入手机号', trigger: 'blur' },
+          // { required: true, message: '请输入手机号', trigger: 'blur' },
           { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号', trigger: 'blur' }
         ],
         email: [
-          { required: true, message: '请输入邮箱', trigger: 'blur' },
+          // { required: true, message: '请输入邮箱', trigger: 'blur' },
           { type: 'email', message: '请输入正确的邮箱地址', trigger: 'blur' }
         ]
       },
@@ -265,6 +267,37 @@ export default {
 
 .el-form-item {
   margin-bottom: 22px;
+}
+
+.basic-info-form >>> .el-form-item__label {
+  color: #333;
+  font-weight: 500;
+  padding-right: 12px;
+  text-align: justify;
+  text-align-last: justify;
+  width: 100px !important;
+  position: relative;
+}
+
+.basic-info-form >>> .el-form-item__content {
+  margin-left: 100px !important;
+}
+
+.basic-info-form >>> .el-form-item__label::before {
+  color: #f56c6c;
+  margin-right: 4px;
+  position: absolute;
+  left: 0;
+}
+
+/* 对于有required的字段（有星号），文字部分需要向右偏移，避开星号 */
+.basic-info-form >>> .el-form-item.is-required .el-form-item__label {
+  padding-left: 12px;
+}
+
+/* 对于没有星号的标签，文字两端对齐 */
+.basic-info-form >>> .el-form-item:not(.is-required) .el-form-item__label {
+  padding-left: 0;
 }
 
 @media (max-width: 768px) {
