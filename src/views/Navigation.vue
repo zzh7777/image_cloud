@@ -120,7 +120,15 @@ export default {
     },
     handleUserCommand(command) {
       if (command === 'personal-info') {
-        this.$router.push({ name: 'personal-info' })
+        // 检查当前路由，避免重复导航
+        if (this.$route.name !== 'personal-info') {
+          this.$router.push({ name: 'personal-info' }).catch(err => {
+            // 忽略重复导航错误
+            if (err.name !== 'NavigationDuplicated') {
+              throw err
+            }
+          })
+        }
       } else if (command === 'logout') {
         this.handleLogout()
       }
