@@ -11,22 +11,12 @@
         label-position="left"
         label-width="100px"
       >
-        <el-form-item label="类型" prop="institutionType">
-          <el-select 
-            v-model="loginForm.institutionType" 
-            placeholder="请选择类型"
-            style="width: 100%"
-          >
-            <el-option label="系统管理员" value="system_admin"></el-option>
-            <el-option label="普通用户" value="normal_user"></el-option>
-          </el-select>
-        </el-form-item>
-
-        <el-form-item label="账号" prop="username">
+        <el-form-item label="用户名" prop="username">
           <el-input 
             v-model="loginForm.username" 
             placeholder="请输入用户名"
             prefix-icon="el-icon-user"
+            @keyup.enter.native="handleLogin"
           ></el-input>
         </el-form-item>
 
@@ -37,30 +27,8 @@
             placeholder="请输入密码"
             prefix-icon="el-icon-lock"
             show-password
+            @keyup.enter.native="handleLogin"
           ></el-input>
-        </el-form-item>
-
-        <el-form-item label="验证码" prop="verifyCode" class="verify-code-form-item">
-          <div class="verify-code-row">
-            <div class="verify-code-input-wrapper">
-              <el-input 
-                v-model="loginForm.verifyCode" 
-                placeholder="请输入验证码"
-                prefix-icon="el-icon-picture"
-                class="verify-code-input"
-                maxlength="4"
-                @keyup.enter.native="handleLogin"
-                @blur="validateVerifyCodeField"
-                @input="handleVerifyCodeInput"
-              ></el-input>
-            </div>
-            <div class="verify-code-image-wrapper">
-              <VerifyCode 
-                ref="verifyCode"
-                @update:code="handleCodeUpdate"
-              />
-            </div>
-          </div>
         </el-form-item>
 
         <el-form-item>
@@ -86,15 +54,6 @@
         </el-button>
       </div>
 
-      <el-button 
-        type="info" 
-        plain 
-        style="width: 100%; margin-top: 20px"
-        disabled
-      >
-        使用统一登录 (敬请期待, 尚在开发中)
-      </el-button>
-
       <div class="footer">
         <p class="copyright">© INS Lab, Xidian University @ 2025</p>
         <div class="footer-icons">
@@ -107,133 +66,151 @@
 </template>
 
 <script>
-import VerifyCode from '../components/VerifyCode.vue'
-
 export default {
   name: 'LoginView',
-  components: {
-    VerifyCode
-  },
   data() {
-    const validateVerifyCode = (rule, value, callback) => {
-      if (!value) {
-        callback(new Error('请输入验证码'))
-      } else if (value.length < 4) {
-        // 输入少于4个字符时不验证，不显示错误
-        callback()
-      } else if (this.currentCode && value.toUpperCase() !== this.currentCode.toUpperCase()) {
-        callback(new Error('验证码错误'))
-      } else {
-        callback()
-      }
-    }
-    
     return {
       loginForm: {
-        institutionType: 'system_admin',
-        username: 'admin',
-        password: '',
-        verifyCode: ''
+        username: '',
+        password: ''
       },
-      currentCode: '',
       rules: {
-        institutionType: [
-          { required: true, message: '请选择机构类型', trigger: 'change' }
-        ],
         username: [
           { required: true, message: '请输入用户名', trigger: 'blur' }
         ],
         password: [
           { required: true, message: '请输入密码', trigger: 'blur' },
           { min: 6, message: '密码长度不能少于6位', trigger: 'blur' }
-        ],
-        verifyCode: [
-          { required: true, message: '请输入验证码', trigger: 'blur' },
-          { validator: validateVerifyCode, trigger: ['blur', 'change', 'input'] }
         ]
       },
       loading: false
     }
   },
   methods: {
-    handleCodeUpdate(code) {
-      this.currentCode = code
-      // 清除验证码输入框的验证状态
-      this.$nextTick(() => {
-        this.$refs.loginForm.clearValidate('verifyCode')
-      })
-    },
-    handleVerifyCodeInput(value) {
-      // 当输入达到4个字符时，自动触发验证
-      if (value && value.length === 4) {
-        this.$nextTick(() => {
-          this.$refs.loginForm.validateField('verifyCode', () => {
-            // 如果验证码错误，刷新验证码并清空输入
-            if (this.currentCode && value.toUpperCase() !== this.currentCode.toUpperCase()) {
-              this.$nextTick(() => {
-                this.$refs.verifyCode.refreshCode()
-                this.loginForm.verifyCode = ''
-              })
-            }
-          })
-        })
-      } else if (value && value.length < 4) {
-        // 输入少于4个字符时，清除之前的验证错误
-        this.$refs.loginForm.clearValidate('verifyCode')
-      }
-    },
-    validateVerifyCodeField() {
-      // 手动触发验证码字段的验证
-      this.$refs.loginForm.validateField('verifyCode', () => {
-        // 检查验证码是否错误
-        if (this.loginForm.verifyCode && 
-            this.currentCode && 
-            this.loginForm.verifyCode.toUpperCase() !== this.currentCode.toUpperCase()) {
-          // 验证码错误时刷新验证码并清空输入
-          this.$nextTick(() => {
-            this.$refs.verifyCode.refreshCode()
-            this.loginForm.verifyCode = ''
-          })
-        }
-      })
-    },
     handleLogin() {
       this.$refs.loginForm.validate((valid) => {
         if (valid) {
-          // 再次验证验证码（双重验证）
-          if (!this.currentCode || this.loginForm.verifyCode.toUpperCase() !== this.currentCode.toUpperCase()) {
-            // 设置验证错误，显示错误提示
-            this.$refs.loginForm.validateField('verifyCode', () => {
-              // 验证码错误时刷新验证码并清空输入
-              this.$nextTick(() => {
-                this.$refs.verifyCode.refreshCode()
-                this.loginForm.verifyCode = ''
-              })
-            })
-            return false
+          this.loading = true
+          
+          // 构建请求数据
+          const requestData = {
+            username: this.loginForm.username,
+            password: this.loginForm.password
           }
           
-          this.loading = true
-          // 模拟登录请求
-          setTimeout(() => {
-            // 保存用户信息到store
-            this.$store.commit('setUser', {
-              username: this.loginForm.username,
-              institutionType: this.loginForm.institutionType
+          // 调用登录接口
+          fetch('/api/v1/token/', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestData)
+          })
+            .then(async response => {
+              // 先读取响应文本，以便检查内容类型
+              const text = await response.text()
+              let data = null
+              
+              // 尝试解析 JSON
+              try {
+                data = text ? JSON.parse(text) : null
+              } catch (e) {
+                // 如果不是 JSON，可能是 HTML 错误页面
+                console.error('响应不是有效的 JSON:', text.substring(0, 500))
+                console.error('完整响应文本:', text)
+                if (!response.ok) {
+                  // 404 错误时，显示更详细的信息
+                  if (response.status === 404) {
+                    throw new Error(`API 路径不存在 (404)。请检查登录接口路径是否正确。响应内容: ${text.substring(0, 200)}`)
+                  }
+                  throw new Error(`服务器返回了非 JSON 格式的错误响应 (${response.status})`)
+                }
+              }
+              
+              // 打印响应状态和内容用于调试
+              console.log('响应状态:', response.status, response.statusText)
+              console.log('响应数据:', data)
+              
+              if (!response.ok) {
+                // 错误响应
+                let errorMessage = `登录失败: ${response.status}`
+                
+                // 401 错误表示 HOSPITAL 角色不能登录
+                if (response.status === 401) {
+                  errorMessage = '只有 ADMIN 角色的用户才能登录'
+                } else if (data) {
+                  // 处理不同的错误格式
+                  if (typeof data === 'string') {
+                    errorMessage = data
+                  } else if (data.detail) {
+                    errorMessage = data.detail
+                  } else if (data.message) {
+                    errorMessage = data.message
+                  } else if (data.error) {
+                    errorMessage = data.error
+                  } else if (data.non_field_errors) {
+                    // Django REST framework 的格式
+                    errorMessage = Array.isArray(data.non_field_errors) 
+                      ? data.non_field_errors.join(', ') 
+                      : data.non_field_errors
+                  } else {
+                    // 尝试提取字段错误
+                    const fieldErrors = Object.keys(data)
+                      .map(key => {
+                        const value = data[key]
+                        if (Array.isArray(value)) {
+                          return `${key}: ${value.join(', ')}`
+                        }
+                        return `${key}: ${value}`
+                      })
+                      .join('; ')
+                    
+                    if (fieldErrors) {
+                      errorMessage = fieldErrors
+                    }
+                  }
+                }
+                
+                console.error('登录失败，错误详情:', data)
+                throw new Error(errorMessage)
+              }
+              
+              // 成功响应，保存 token 和用户信息
+              if (data && data.access && data.refresh) {
+                // 保存 token
+                this.$store.commit('setTokens', {
+                  access: data.access,
+                  refresh: data.refresh
+                })
+                
+                // 保存用户信息（从 token 中解析或使用用户名）
+                this.$store.commit('setUser', {
+                  username: this.loginForm.username,
+                  institutionType: 'ADMIN' // 只有 ADMIN 能登录
+                })
+                
+                console.log('登录成功，Token 已保存')
+                return data
+              } else {
+                throw new Error('登录响应中缺少 token 信息')
+              }
             })
-            this.loading = false
-            // 跳转到主页或之前尝试访问的页面
-            const redirect = this.$route.query.redirect || '/main'
-            this.$router.push(redirect)
-            this.$message.success('登录成功')
-          }, 1000)
+            .then(() => {
+              this.loading = false
+              this.$message.success('登录成功')
+              // 跳转到主页或之前尝试访问的页面
+              const redirect = this.$route.query.redirect || '/main'
+              this.$router.push(redirect)
+            })
+            .catch(error => {
+              this.loading = false
+              console.error('登录错误:', error)
+              
+              // 显示错误信息
+              const errorMessage = error.message || '登录失败，请稍后重试'
+              this.$message.error(errorMessage)
+            })
         } else {
-          // 如果验证码字段有错误，刷新验证码
-          const verifyCodeField = this.$refs.loginForm.fields.find(field => field.prop === 'verifyCode')
-          if (verifyCodeField && verifyCodeField.validateMessage) {
-            this.$refs.verifyCode.refreshCode()
-            this.loginForm.verifyCode = ''
-          }
           return false
         }
       })
@@ -302,29 +279,9 @@ export default {
   padding-left: 12px;
 }
 
-/* 对于没有星号的标签（如"类型"），文字两端对齐 */
-.login-form >>> .el-form-item[prop="institutionType"] .el-form-item__label {
-  padding-left: 0;
-}
-
-/* 对于验证码字段，文字保持原样，不两端对齐 */
-.login-form >>> .el-form-item[prop="verifyCode"] .el-form-item__label {
-  text-align: left;
-  text-align-last: left;
-}
 
 .login-form >>> .el-input__inner {
   background-color: #fffef0;
-}
-
-.login-form >>> .el-select .el-input__inner {
-  background-color: #f5f7fa;
-  color: #909399;
-}
-
-.login-form >>> .el-select .el-input.is-focus .el-input__inner {
-  background-color: #fffef0;
-  color: #333;
 }
 
 .divider {
@@ -387,73 +344,6 @@ export default {
 
 .login-form >>> .el-form-item:last-child .el-form-item__content {
   margin-left: 0 !important;
-}
-
-.verify-code-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  width: 100%;
-}
-
-.verify-code-input {
-  flex: 1;
-}
-
-.verify-code-image-wrapper {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.verify-code-image-wrapper >>> .verify-code-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0;
-}
-
-.verify-code-image-wrapper >>> .verify-code-actions {
-  margin-top: 4px;
-}
-
-/* 调整验证码错误提示位置，使其显示在输入框下方 */
-.verify-code-input-wrapper {
-  flex: 1;
-  position: relative;
-}
-
-.login-form >>> .verify-code-form-item .el-form-item__content {
-  position: relative;
-}
-
-.login-form >>> .verify-code-form-item .verify-code-row {
-  position: relative;
-}
-
-.login-form >>> .verify-code-form-item .el-form-item__error {
-  padding-top: 2px;
-  margin-top: 0;
-  margin-bottom: 0;
-  line-height: 1.2;
-  position: absolute;
-  left: 0;
-  top: 42px;
-  width: auto;
-  z-index: 1;
-  font-size: 12px;
-}
-
-.login-form >>> .verify-code-form-item .verify-code-input-wrapper .el-input {
-  margin-bottom: 0;
-}
-
-.login-form >>> .verify-code-form-item .verify-code-input-wrapper {
-  margin-bottom: 0;
-}
-
-.login-form >>> .verify-code-form-item {
-  margin-bottom: 18px;
 }
 </style>
 
