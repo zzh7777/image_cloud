@@ -79,8 +79,11 @@
         <el-table-column prop="warningReason" label="预警原因" min-width="200" show-overflow-tooltip></el-table-column>
         <el-table-column prop="status" label="审核状态" width="130" align="center">
           <template slot-scope="scope">
-            <el-tag :type="getStatusType(scope.row.status)" size="small">
-              {{ scope.row.status }}
+            <el-tag 
+              :type="getStatusType(scope.row.status)" 
+              :style="getStatusStyle(scope.row.status)"
+              size="small">
+              {{ formatReviewStatus(scope.row.status) }}
             </el-tag>
           </template>
         </el-table-column>
@@ -1082,20 +1085,24 @@ export default {
     mapStatus(status) {
       if (!status) return ''
       // 如果已经是中文状态，直接返回
-      if (['待初审', '待医院复核', '待终审', '已终审'].includes(status)) {
+      if (['待医保初审', '待初审', '待医院复核', '待医保终审', '待终审', '审批已完成', '已终审'].includes(status)) {
         return status
       }
       // 映射英文状态到中文
       const statusMap = {
-        'pending_first_review': '待初审',
-        'pending_initial_review': '待初审',
+        'pending_first_review': '待医保初审',
+        'pending_initial_review': '待医保初审',
+        'pending_initial': '待医保初审',
         'pending_hospital_review': '待医院复核',
-        'pending_final_review': '待终审',
-        'final_reviewed': '已终审',
-        '1': '待初审', // 根据API示例，可能是数字
+        'hospital_review': '待医院复核',
+        'pending_final_review': '待医保终审',
+        'pending_final': '待医保终审',
+        'final_reviewed': '审批已完成',
+        'completed': '审批已完成',
+        '1': '待医保初审', // 根据API示例，可能是数字
         '2': '待医院复核',
-        '3': '待终审',
-        '4': '已终审'
+        '3': '待医保终审',
+        '4': '审批已完成'
       }
       return statusMap[status] || status
     },
@@ -1174,15 +1181,70 @@ export default {
     goBack() {
       this.$router.back()
     },
+    // 格式化审核状态（确保显示中文）
+    formatReviewStatus(status) {
+      if (!status) return '-'
+      // 如果已经是中文状态，直接返回
+      if (['待医保初审', '待初审', '待医院复核', '待医保终审', '待终审', '审批已完成', '已终审'].includes(status)) {
+        return status
+      }
+      // 映射英文状态到中文
+      const statusMap = {
+        'pending_first_review': '待医保初审',
+        'pending_initial_review': '待医保初审',
+        'pending_initial': '待医保初审',
+        'pending_hospital_review': '待医院复核',
+        'hospital_review': '待医院复核',
+        'pending_final_review': '待医保终审',
+        'pending_final': '待医保终审',
+        'final_reviewed': '审批已完成',
+        'completed': '审批已完成'
+      }
+      return statusMap[status] || status
+    },
     // 获取状态类型
     getStatusType(status) {
-      const typeMap = {
-        '待初审': 'warning',
-        '待医院复核': 'primary',
-        '待终审': 'info',
-        '已终审': 'success'
+      // 先格式化状态（确保是中文）
+      const formattedStatus = this.formatReviewStatus(status)
+      // 支持中文状态
+      const chineseTypeMap = {
+        '待医保初审': 'warning', // 橙色
+        '待初审': 'warning', // 橙色
+        '待医院复核': 'primary', // 蓝色
+        '待医保终审': '', // 使用自定义样式（紫色）
+        '待终审': '', // 使用自定义样式（紫色）
+        '审批已完成': 'success', // 绿色
+        '已终审': 'success' // 绿色
       }
-      return typeMap[status] || 'info'
+      if (chineseTypeMap[formattedStatus] !== undefined) {
+        return chineseTypeMap[formattedStatus]
+      }
+      // 支持英文状态（如果还没有转换）
+      const englishTypeMap = {
+        'pending_initial': 'warning', // 待医保初审 - 橙色
+        'pending_hospital_review': 'primary', // 待医院复核 - 蓝色
+        'hospital_review': 'primary', // 待医院复核 - 蓝色
+        'pending_final': '', // 待医保终审 - 使用自定义样式（紫色）
+        'final_reviewed': 'success', // 审批已完成 - 绿色
+        'completed': 'success' // 审批已完成 - 绿色
+      }
+      return englishTypeMap[status] !== undefined ? englishTypeMap[status] : 'info'
+    },
+    // 获取状态自定义样式（用于紫色等特殊颜色）
+    getStatusStyle(status) {
+      if (!status) return {}
+      // 先格式化状态
+      const formattedStatus = this.formatReviewStatus(status)
+      // 待医保终审使用浅紫色（Element UI 风格）
+      if (formattedStatus === '待医保终审' || formattedStatus === '待终审' || 
+          status === 'pending_final' || status === 'pending_final_review') {
+        return {
+          backgroundColor: '#f3e5f5',
+          borderColor: '#ce93d8',
+          color: '#7b1fa2'
+        }
+      }
+      return {}
     },
     // 获取审核结果类型
     getReviewResultType(result) {

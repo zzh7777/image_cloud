@@ -41,11 +41,13 @@
       <div class="upload-section">
         <el-upload
           ref="upload"
+          action="#"
           :on-change="handleFileChange"
           :on-remove="handleFileRemove"
           :show-file-list="false"
           :limit="1"
           :auto-upload="false"
+          :http-request="handleCustomUpload"
           accept=".doc,.docx,.pdf,.jpg,.jpeg,.png,.txt,.xls,.xlsx"
         >
           <el-button 
@@ -145,10 +147,15 @@
             ></iframe>
           </div>
           <div v-else-if="isImageFile" class="image-viewer">
+            <div v-if="fileLoading" class="loading-container">
+              <i class="el-icon-loading"></i>
+              <p>正在加载图片...</p>
+            </div>
             <img
+              v-else
               :src="fileViewUrlWithAuth"
               alt="文件预览"
-              style="max-width: 100%; max-height: 600px;"
+              style="max-width: 100%; max-height: 600px; display: block; margin: 0 auto; border-radius: 4px; box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);"
               @load="handleFileLoad"
               @error="handleFileError"
             />
@@ -201,6 +208,34 @@
                 <p>正在解析 Excel 文件...</p>
               </div>
             </div>
+          </div>
+          <div v-else-if="isTxtFile" class="txt-viewer" style="width: 100%; max-width: 100%; box-sizing: border-box; display: flex; align-items: flex-start; justify-content: flex-start;">
+            <div v-if="txtContent !== ''" class="txt-content" style="
+              width: 100%;
+              max-width: 100%;
+              max-height: 600px;
+              overflow: auto;
+              padding: 20px;
+              background: #fff;
+              border: 1px solid #e4e7ed;
+              border-radius: 4px;
+              font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+              font-size: 14px;
+              line-height: 1.6;
+              color: #333;
+              white-space: pre-wrap;
+              word-wrap: break-word;
+              text-align: left;
+            ">{{ txtContent }}</div>
+            <div v-else style="padding: 20px; text-align: center; color: #909399;">
+              <i class="el-icon-loading"></i>
+              <p>正在加载文本文件...</p>
+            </div>
+          </div>
+          <div v-else-if="isDocxFile" class="unsupported-viewer">
+            <i class="el-icon-document"></i>
+            <p>该文件格式（Word 文档）不支持在线预览</p>
+            <el-button type="primary" @click="tryDownloadFile">下载文件</el-button>
           </div>
           <div v-else class="unsupported-viewer">
             <i class="el-icon-document"></i>
@@ -284,6 +319,7 @@ export default {
       excelData: null, // Excel 文件解析后的数据
       excelSheets: [], // Excel 工作表列表
       currentSheetIndex: 0, // 当前显示的工作表索引
+      txtContent: '', // Txt 文件内容
       // 编辑描述相关
       editDialogVisible: false,
       editingFile: null,
@@ -330,6 +366,18 @@ export default {
       if (!this.viewingFile) return false
       const fileName = this.viewingFile.file_name.toLowerCase()
       return fileName.endsWith('.xlsx') || fileName.endsWith('.xls')
+    },
+    // 判断是否为 Doc/Docx 文件
+    isDocxFile() {
+      if (!this.viewingFile) return false
+      const fileName = this.viewingFile.file_name.toLowerCase()
+      return fileName.endsWith('.docx') || fileName.endsWith('.doc')
+    },
+    // 判断是否为 Txt 文件
+    isTxtFile() {
+      if (!this.viewingFile) return false
+      const fileName = this.viewingFile.file_name.toLowerCase()
+      return fileName.endsWith('.txt')
     },
     // 当前工作表的数据
     currentSheetData() {
@@ -681,6 +729,14 @@ export default {
       this.selectedFile = null
       console.log('文件已移除')
     },
+    // 自定义上传方法（用于 el-upload 组件，但实际上不会调用）
+    // eslint-disable-next-line no-unused-vars
+    handleCustomUpload(options) {
+      // 这个方法是为了满足 el-upload 的 http-request 要求
+      // 但实际上我们使用 handleUpload 方法进行手动上传
+      // 所以这里不需要做任何事情
+      console.log('handleCustomUpload called, but using manual upload instead')
+    },
     // 手动触发上传（也用于文件选择后自动上传）
     async handleUpload() {
       // 如果没有选中文件，尝试从 el-upload 获取
@@ -710,24 +766,71 @@ export default {
         formData.append('file', this.selectedFile)
       
       try {
-        const response = await fetch('/api/v1/knowledge-base/', {
-        method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`
-            // 注意：不要设置 Content-Type，让浏览器自动设置，以便包含 boundary
-          },
-        body: formData
-      })
+        // 创建一个带超时的 fetch 请求
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 120000) // 120秒超时
+        
+        // 打印调试信息
+        console.log('准备上传文件:', {
+          fileName: this.selectedFile.name,
+          fileSize: this.selectedFile.size,
+          fileType: this.selectedFile.type,
+          url: '/api/v1/knowledge-base/',
+          hasToken: !!accessToken
+        })
+        
+        let response
+        try {
+          response = await fetch('/api/v1/knowledge-base/', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`
+              // 注意：不要设置 Content-Type，让浏览器自动设置，以便包含 boundary
+            },
+            body: formData,
+            signal: controller.signal
+          })
+          
+          console.log('上传请求已发送，响应状态:', response.status, response.statusText)
+        } catch (fetchError) {
+          // 清除超时定时器
+          clearTimeout(timeoutId)
+          
+          console.error('上传请求失败:', {
+            error: fetchError,
+            name: fetchError.name,
+            message: fetchError.message,
+            stack: fetchError.stack
+          })
+          
+          // 检查是否是中止错误
+          if (fetchError.name === 'AbortError') {
+            throw new Error('上传超时，请检查网络连接或尝试上传较小的文件')
+          }
+          // 重新抛出其他错误
+          throw fetchError
+        }
+        
+        // 清除超时定时器
+        clearTimeout(timeoutId)
         
         // 读取响应文本
         const text = await response.text()
         let data = null
+        
+        console.log('响应原始文本:', text.substring(0, 500))
+        console.log('响应头:', {
+          contentType: response.headers.get('content-type'),
+          status: response.status,
+          statusText: response.statusText
+        })
         
         // 尝试解析 JSON
         try {
           data = text ? JSON.parse(text) : null
         } catch (e) {
           console.error('响应不是有效的 JSON:', text.substring(0, 500))
+          console.error('JSON 解析错误:', e)
           // 如果响应不是JSON，直接抛出错误
           if (!response.ok) {
             throw new Error(`服务器返回了非 JSON 格式的响应 (${response.status}): ${text.substring(0, 200)}`)
@@ -738,26 +841,117 @@ export default {
         console.log('上传响应状态:', response.status)
         console.log('上传响应数据:', data)
         
-        if (!response.ok) {
+        // 处理 401 错误，尝试刷新 token
+        if (response.status === 401) {
+          const refreshSuccess = await handle401Error(this.$store, this.$router, false)
+          if (refreshSuccess) {
+            // 刷新成功，使用新 token 重试上传
+            const newAccessToken = this.$store.getters.accessToken
+            console.log('Token 刷新成功，使用新 token 重试上传')
+            
+            // 重新构建 FormData（因为已经读取过，需要重新创建）
+            const retryFormData = new FormData()
+            retryFormData.append('file', this.selectedFile)
+            
+            // 重试请求
+            const retryController = new AbortController()
+            const retryTimeoutId = setTimeout(() => retryController.abort(), 120000)
+            
+            try {
+              response = await fetch('/api/v1/knowledge-base/', {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${newAccessToken}`
+                },
+                body: retryFormData,
+                signal: retryController.signal
+              })
+              clearTimeout(retryTimeoutId)
+              
+              // 重新读取响应
+              const retryText = await response.text()
+              try {
+                data = retryText ? JSON.parse(retryText) : null
+              } catch (e) {
+                console.error('重试响应解析失败:', e)
+              }
+              
+              console.log('重试上传响应状态:', response.status)
+              console.log('重试上传响应数据:', data)
+              
+              // 如果重试后仍然是 401，说明 token 仍然无效
+              if (response.status === 401) {
+                this.$store.commit('clearUser')
+                this.$router.push('/login')
+                this.uploading = false
+                return
+              }
+            } catch (retryError) {
+              clearTimeout(retryTimeoutId)
+              console.error('重试上传失败:', retryError)
+              throw retryError
+            }
+          } else {
+            // 刷新失败，已经跳转到登录页
+            this.uploading = false
+            return
+          }
+        }
+        
+        // 检查统一响应格式（优先检查 code 字段）
+        if (data && data.code !== undefined) {
+          if (data.code !== 0) {
+            // code 非 0 表示错误，即使 HTTP 状态码是 200-299
+            let errorMessage = data.message || `上传失败: code ${data.code}`
+            
+            // 根据错误类型提供更友好的提示
+            if (errorMessage.includes('file_name') && errorMessage.includes('already exists')) {
+              errorMessage = '文件名已存在，请使用不同的文件名'
+            } else if (errorMessage.includes('File must be a PDF')) {
+              errorMessage = '文件格式错误，必须上传 PDF 文件'
+            } else if (errorMessage.includes('This field is required')) {
+              errorMessage = '文件缺失，请选择要上传的文件'
+            }
+            
+            throw new Error(errorMessage)
+          }
+          // code === 0 表示成功，继续处理
+        }
+        
+        // 检查 HTTP 状态码（201 Created 或 200 OK 都表示成功）
+        if (!response.ok && response.status !== 201) {
           let errorMessage = `上传失败: ${response.status}`
           
           if (response.status === 401) {
+            // 如果到这里还是 401，说明重试后仍然失败
             errorMessage = '认证失败，请重新登录'
-            // 清除用户信息，跳转到登录页
             this.$store.commit('clearUser')
             this.$router.push('/login')
+            this.uploading = false
+            return
           } else if (response.status === 403) {
             errorMessage = '权限不足，只有 ADMIN 角色才能上传'
           } else if (response.status === 400) {
             // 参数错误
             if (data) {
               if (typeof data === 'object') {
-                // 检查是否是文件名重复错误
-                if (data.file_name && Array.isArray(data.file_name)) {
+                // 处理统一响应格式
+                if (data.code !== undefined && data.message) {
+                  errorMessage = data.message
+                  // 根据错误类型提供更友好的提示
+                  if (errorMessage.includes('file_name') && errorMessage.includes('already exists')) {
+                    errorMessage = '文件名已存在，请使用不同的文件名'
+                  } else if (errorMessage.includes('File must be a PDF')) {
+                    errorMessage = '文件格式错误，必须上传 PDF 文件'
+                  } else if (errorMessage.includes('This field is required')) {
+                    errorMessage = '文件缺失，请选择要上传的文件'
+                  }
+                } else if (data.file_name && Array.isArray(data.file_name)) {
+                  // 检查是否是文件名重复错误
                   const fileNameError = data.file_name[0]
                   if (fileNameError && fileNameError.includes('already exists')) {
                     errorMessage = '文件名已存在，请使用不同的文件名'
-          } else {
+                  } else {
                     errorMessage = `file_name: ${data.file_name.join(', ')}`
                   }
                 } else {
@@ -788,7 +982,9 @@ export default {
             // 服务器内部错误
             if (data) {
               let rawError = ''
-              if (data.detail) {
+              if (data.code !== undefined && data.message) {
+                rawError = data.message
+              } else if (data.detail) {
                 rawError = data.detail
               } else if (data.message) {
                 rawError = data.message
@@ -806,7 +1002,7 @@ export default {
                 const fileNameMatch = rawError.match(/Key \(file_name\)=\(([^)]+)\)/)
                 if (fileNameMatch && fileNameMatch[1]) {
                   errorMessage = `文件名 "${fileNameMatch[1]}" 已存在，请使用不同的文件名`
-          } else {
+                } else {
                   errorMessage = '文件名已存在，请使用不同的文件名'
                 }
               } else {
@@ -816,7 +1012,9 @@ export default {
               errorMessage = '服务器内部错误，请稍后重试'
             }
           } else if (data) {
-            if (data.detail) {
+            if (data.code !== undefined && data.message) {
+              errorMessage = data.message
+            } else if (data.detail) {
               errorMessage = data.detail
             } else if (data.message) {
               errorMessage = data.message
@@ -843,8 +1041,9 @@ export default {
           throw new Error(errorMessage)
         }
         
-        // 上传成功
-      this.$message.success('文件上传成功')
+        // 上传成功（201 Created 或 200 OK）
+        console.log('上传成功，响应数据:', data)
+        this.$message.success('文件上传成功')
       
         // 清空文件选择
         this.selectedFile = null
@@ -862,7 +1061,33 @@ export default {
         
       } catch (error) {
         console.error('上传错误:', error)
-        this.$message.error(error.message || '文件上传失败，请稍后重试')
+        
+        // 处理不同类型的错误
+        let errorMessage = '文件上传失败，请稍后重试'
+        
+        if (error.message) {
+          // 检查是否是网络错误
+          if (error.message.includes('Failed to fetch') || 
+              error.message.includes('NetworkError') ||
+              error.message.includes('Network request failed') ||
+              error.name === 'TypeError' && error.message.includes('fetch')) {
+            errorMessage = '网络连接失败，请检查：\n1. 网络连接是否正常\n2. 服务器是否可访问\n3. 代理配置是否正确'
+          } else if (error.message.includes('timeout') || error.message.includes('超时')) {
+            errorMessage = '上传超时，文件可能过大，请稍后重试或尝试上传较小的文件'
+          } else {
+            errorMessage = error.message
+          }
+        }
+        
+        // 使用 alert 显示详细的错误信息（如果是网络错误）
+        if (errorMessage.includes('网络连接失败')) {
+          this.$alert(errorMessage, '上传失败', {
+            confirmButtonText: '我知道了',
+            type: 'error'
+          })
+        } else {
+          this.$message.error(errorMessage)
+        }
         
         // 上传失败时也清空文件选择，以便下次可以重新选择
         this.selectedFile = null
@@ -1195,6 +1420,12 @@ export default {
                     this.fileLoading = false
                     this.fileError = null
                     return
+                  } else if (fileName.endsWith('.txt')) {
+                    // Txt 文件，读取文本内容
+                    await this.parseTxtFile(blob)
+                    this.fileLoading = false
+                    this.fileError = null
+                    return
                   } else if (fileName.match(/\.(jpg|jpeg|png|gif|bmp|webp)$/)) {
                     // 图片文件，创建 Blob URL
                     this.fileViewUrl = window.URL.createObjectURL(blob)
@@ -1310,10 +1541,19 @@ export default {
         // 判断文件类型
         const fileName = file.file_name.toLowerCase()
         const isExcel = fileName.endsWith('.xlsx') || fileName.endsWith('.xls')
+        const isTxt = fileName.endsWith('.txt')
+        const isImage = fileName.match(/\.(jpg|jpeg|png|gif|bmp|webp)$/)
         
         if (isExcel) {
           // Excel 文件：解析并显示
           await this.parseExcelFile(blob)
+        } else if (isTxt) {
+          // Txt 文件：读取文本内容
+          await this.parseTxtFile(blob)
+        } else if (isImage) {
+          // 图片文件：创建 Blob URL 用于预览
+          const blobUrl = window.URL.createObjectURL(blob)
+          this.fileViewUrl = blobUrl
         } else {
           // 其他文件（包括PDF）：创建 Blob URL 用于预览
           // 预览API返回的PDF会通过 Content-Disposition: inline 在浏览器中直接显示
@@ -1453,6 +1693,43 @@ export default {
         this.fileLoading = false
       }
     },
+    // 解析 Txt 文件
+    async parseTxtFile(blob) {
+      try {
+        // 检查文件大小（超过 5MB 时给出警告）
+        const fileSizeMB = blob.size / (1024 * 1024)
+        if (fileSizeMB > 5) {
+          this.$message.warning(`文件较大（${fileSizeMB.toFixed(2)}MB），加载可能需要一些时间，请耐心等待...`)
+        }
+        
+        // 读取文本内容
+        // 尝试使用 UTF-8 编码
+        const text = await blob.text()
+        
+        // 如果文件很大，只显示前 10000 个字符
+        const MAX_LENGTH = 10000
+        if (text.length > MAX_LENGTH) {
+          this.txtContent = text.substring(0, MAX_LENGTH) + '\n\n... (文件内容过长，仅显示前 ' + MAX_LENGTH + ' 个字符，完整内容请下载文件查看)'
+          this.$message.info('文件内容较长，仅显示前 ' + MAX_LENGTH + ' 个字符。完整内容请下载文件查看。')
+        } else {
+          this.txtContent = text
+        }
+        
+        // 如果文件为空
+        if (!this.txtContent || this.txtContent.trim() === '') {
+          this.txtContent = '(文件为空)'
+        }
+        
+        console.log('Txt 文件解析成功', {
+          length: text.length,
+          truncated: text.length > MAX_LENGTH
+        })
+      } catch (error) {
+        console.error('解析 Txt 文件失败:', error)
+        this.fileError = '解析 Txt 文件失败：' + error.message + '。文件可能过大或格式不正确，请尝试下载文件查看。'
+        this.fileLoading = false
+      }
+    },
     // 切换工作表
     handleSheetChange(tab) {
       this.currentSheetIndex = tab.name
@@ -1467,6 +1744,8 @@ export default {
       this.excelData = null
       this.excelSheets = []
       this.currentSheetIndex = 0
+      // 清理 Txt 数据
+      this.txtContent = ''
       this.viewingFile = null
       this.fileViewUrl = ''
       this.fileError = null
@@ -1815,24 +2094,67 @@ export default {
         // 打印响应用于调试
         console.log('删除响应状态:', response.status)
 
+        // 读取响应文本
+        const text = await response.text()
+        let errorData = null
+        
+        try {
+          errorData = text ? JSON.parse(text) : null
+        } catch (e) {
+          // 如果解析失败，可能是纯文本错误信息或空响应
+          if (text) {
+            errorData = { detail: text, message: text }
+          }
+        }
+
         // 204 No Content 表示删除成功（无响应体）
-        if (response.status === 204 || response.ok) {
+        if (response.status === 204 || (response.ok && !text)) {
           this.$message.success('删除成功')
           // 重新获取列表
           this.fetchKnowledgeBaseList()
-        } else {
-          // 处理错误响应
-          let errorMessage = `删除失败: ${response.status}`
-          
-          // 尝试读取错误信息
-          const text = await response.text()
-          let errorData = null
-          
-          try {
-            errorData = text ? JSON.parse(text) : null
-          } catch (e) {
-            // 忽略解析错误
+          return
+        }
+
+        // 优先检查统一响应格式（如果有 code 字段）
+        if (errorData && errorData.code !== undefined) {
+          if (errorData.code === 0) {
+            // 成功：code 为 0
+            this.$message.success('删除成功')
+            this.fetchKnowledgeBaseList()
+            return
+          } else {
+            // 错误：code 非 0
+            const errorMessage = errorData.message || `删除失败: code ${errorData.code}`
+            
+            // 检查是否是关联错误（code 400 且包含关联关键词）
+            if (errorData.code === 400 && (
+              errorMessage.includes('关联') || 
+              errorMessage.includes('referenced') ||
+              errorMessage.includes('被其他数据关联') ||
+              errorMessage.includes('foreign key') ||
+              errorMessage.includes('无法删除')
+            )) {
+              // 使用 alert 显示友好的错误提示
+              this.$alert(
+                errorMessage + '\n\n请先解除该文件与其他数据的关联关系，然后再尝试删除。',
+                '无法删除',
+                {
+                  confirmButtonText: '我知道了',
+                  type: 'warning',
+                  customClass: 'delete-error-alert'
+                }
+              )
+              return // 不抛出错误，因为已经显示了友好的提示
+            }
+            
+            // 其他错误
+            throw new Error(errorMessage)
           }
+        }
+
+        // 如果没有统一响应格式，检查 HTTP 状态码
+        if (!response.ok) {
+          let errorMessage = `删除失败: ${response.status}`
 
           if (response.status === 401) {
             errorMessage = '认证失败，请重新登录'
@@ -1843,8 +2165,70 @@ export default {
             errorMessage = '权限不足，只有 ADMIN 角色才能删除'
           } else if (response.status === 404) {
             errorMessage = '知识库不存在'
-          } else if (response.status === 500) {
-            errorMessage = errorData?.detail || '删除文件时出错，可能数据库记录已删除但文件删除失败'
+          } else if (response.status === 400 || response.status === 500) {
+            // 检查是否是关联错误（兼容旧格式）
+            const detailText = errorData?.detail || errorData?.message || errorData?.error || text || ''
+            
+            // 检查是否包含关联错误的关键词
+            if (detailText.includes('referenced') || 
+                detailText.includes('foreign key') || 
+                detailText.includes('关联') || 
+                detailText.includes('被其他数据关联') ||
+                detailText.includes('BusinessRule') ||
+                detailText.includes('protected foreign keys')) {
+              
+              // 提取关联的业务规则名称
+              let ruleNames = []
+              
+              // 模式1: 引号内的规则名称
+              const quotedMatches = detailText.match(/['"]([^'"]+)['"]/g) || []
+              ruleNames.push(...quotedMatches.map(match => match.replace(/['"]/g, '')))
+              
+              // 模式2: 中文规则名称
+              const chineseRuleMatches = detailText.match(/([^\n\r，,。.]+(?:检测|规则|管理|处理)[^\n\r，,。.]*)/g) || []
+              ruleNames.push(...chineseRuleMatches.map(match => match.trim()))
+              
+              // 去重并过滤
+              const uniqueRules = [...new Set(ruleNames)]
+                .filter(name => {
+                  const trimmed = name.trim()
+                  return trimmed && 
+                         trimmed.length > 0 && 
+                         trimmed.length < 100 &&
+                         !trimmed.includes('Cannot delete') &&
+                         !trimmed.includes('referenced') &&
+                         !trimmed.includes('foreign key') &&
+                         !trimmed.includes('BusinessRule.based_knowledge')
+                })
+              
+              // 构建友好的错误提示
+              let friendlyMessage = '无法删除该知识库文件，因为该文件正在被以下业务规则使用：\n\n'
+              
+              if (uniqueRules.length > 0) {
+                const displayRules = uniqueRules.slice(0, 20)
+                friendlyMessage += displayRules.map((rule, index) => `${index + 1}. ${rule}`).join('\n')
+                if (uniqueRules.length > 20) {
+                  friendlyMessage += `\n\n... 还有 ${uniqueRules.length - 20} 个业务规则`
+                }
+              } else {
+                friendlyMessage += '该文件正在被一个或多个业务规则关联使用。'
+              }
+              
+              friendlyMessage += '\n\n请先前往"规则库管理"页面，解除这些业务规则与该文件的关联关系，然后再尝试删除。'
+              
+              // 使用 MessageBox 显示详细信息
+              this.$alert(friendlyMessage, '无法删除', {
+                confirmButtonText: '我知道了',
+                type: 'warning',
+                dangerouslyUseHTMLString: false,
+                customClass: 'delete-error-alert'
+              })
+              
+              return // 不抛出错误，因为已经显示了友好的提示
+            } else {
+              // 其他类型的错误
+              errorMessage = errorData?.detail || errorData?.message || errorData?.error || '删除文件时出错，请稍后重试'
+            }
           } else if (errorData) {
             if (errorData.detail) {
               errorMessage = errorData.detail
@@ -1857,6 +2241,10 @@ export default {
 
           throw new Error(errorMessage)
         }
+        
+        // 如果响应成功但没有统一格式，也视为成功
+        this.$message.success('删除成功')
+        this.fetchKnowledgeBaseList()
       } catch (error) {
         if (error !== 'cancel') {
           console.error('删除失败:', error)
@@ -2062,11 +2450,31 @@ export default {
   display: flex;
   justify-content: center;
   align-items: center;
+  min-height: 400px;
 }
 
 .image-viewer img {
   border-radius: 4px;
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+
+.image-viewer img:hover {
+  transform: scale(1.02);
+}
+
+/* 删除错误提示样式 */
+.delete-error-alert {
+  max-width: 600px;
+}
+
+.delete-error-alert .el-message-box__message {
+  white-space: pre-line;
+  text-align: left;
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 10px 0;
 }
 </style>
 

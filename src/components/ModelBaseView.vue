@@ -701,22 +701,31 @@ export default {
           page_size: this.pagination.pageSize
         })
         
-        // 添加搜索条件
-        if (this.searchForm.modelName) {
-          params.append('model_name', this.searchForm.modelName)
+        // 添加搜索条件（根据接口文档，支持模糊匹配）
+        if (this.searchForm.modelName && this.searchForm.modelName.trim()) {
+          params.append('model_name', this.searchForm.modelName.trim())
         }
-        if (this.searchForm.modelType) {
-          params.append('model_type', this.searchForm.modelType)
+        if (this.searchForm.modelType && this.searchForm.modelType.trim()) {
+          params.append('model_type', this.searchForm.modelType.trim())
         }
-        if (this.searchForm.creator) {
-          params.append('creator', this.searchForm.creator)
+        if (this.searchForm.creator && this.searchForm.creator.trim()) {
+          params.append('creator', this.searchForm.creator.trim())
         }
-        if (this.searchForm.dateRange && this.searchForm.dateRange.length === 2) {
+        // 添加日期范围搜索条件（格式：YYYY-MM-DD）
+        if (this.searchForm.dateRange && Array.isArray(this.searchForm.dateRange) && this.searchForm.dateRange.length === 2) {
+          // 确保日期格式正确（value-format="yyyy-MM-dd" 已设置）
           params.append('start_date', this.searchForm.dateRange[0])
           params.append('end_date', this.searchForm.dateRange[1])
         }
         
         const url = `/api/v1/rule-models/?${params.toString()}`
+        console.log('请求模型列表，URL:', url)
+        console.log('搜索条件:', {
+          modelName: this.searchForm.modelName,
+          modelType: this.searchForm.modelType,
+          creator: this.searchForm.creator,
+          dateRange: this.searchForm.dateRange
+        })
         
         let response = await fetch(url, {
           method: 'GET',
@@ -817,7 +826,8 @@ export default {
         }
         
         // 处理统一响应格式：{ code: 0, message: "success", data: { count, results } }
-        if (data && data.data && data.data.results) {
+        // 优先检查 code === 0 的情况
+        if (data && data.code === 0 && data.data && data.data.results) {
           // 映射后端数据到前端显示格式
           this.modelList = data.data.results.map(item => ({
             id: item.id,
@@ -833,6 +843,21 @@ export default {
           
           // 更新分页信息
           this.pagination.total = data.data.count || 0
+          console.log('模型列表加载成功，共', data.data.count, '条记录，当前页', this.modelList.length, '条')
+        } else if (data && data.results) {
+          // 兼容旧格式（没有 code 字段的情况）
+          this.modelList = data.results.map(item => ({
+            id: item.id,
+            modelName: item.model_name || '',
+            modelCode: item.model_code || '',
+            modelType: item.model_type || '',
+            modelVersion: item.model_version || '',
+            createTime: item.create_time || '',
+            creator: item.creator || '',
+            status: item.status === 'active' ? '启用' : '禁用',
+            updateTime: item.update_time || ''
+          }))
+          this.pagination.total = data.count || 0
         } else {
           this.modelList = []
           this.pagination.total = 0
@@ -854,9 +879,11 @@ export default {
         modelName: '',
         modelType: '',
         creator: '',
-        dateRange: null
+        dateRange: []
       }
-      this.handleQuery()
+      // 重置后重新加载列表
+      this.pagination.currentPage = 1
+      this.fetchModelList()
     },
     // 查看模型详情
     async handleView(row) {

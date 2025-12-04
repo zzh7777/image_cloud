@@ -49,14 +49,16 @@ const PERMISSION_MATRIX = {
   },
   'Hospital Administrator': {
     'user': ['list', 'retrieve', 'create', 'update', 'partial_update'],
-    'earlywarningdetaillist': ['get'],
-    'earlywarningdetailretrieve': ['get'],
+    'earlywarningsummarylist': ['get'], // 预警列表页面
+    'earlywarningdetaillist': ['get'], // 预警详情列表页面
+    'earlywarningdetailretrieve': ['get'], // 预警记录详情页面
     'hospitalreviewupdate': ['review_hospital'],
     'hospitalalertlist': ['get'],
   },
   'Hospital User': {
-    'earlywarningdetaillist': ['get'],
-    'earlywarningdetailretrieve': ['get'],
+    'earlywarningsummarylist': ['get'], // 预警列表页面
+    'earlywarningdetaillist': ['get'], // 预警详情列表页面
+    'earlywarningdetailretrieve': ['get'], // 预警记录详情页面
     'hospitalreviewupdate': ['review_hospital'],
     'hospitalalertlist': ['get'],
   },

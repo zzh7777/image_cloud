@@ -114,20 +114,41 @@ export default new Vuex.Store({
         // 处理统一响应格式
         if (data && data.code === 0 && data.data) {
           const userData = data.data
+          // 从 groups 数组中提取角色（优先使用 groups，与登录逻辑保持一致）
+          let userRole = ''
+          if (userData.groups && Array.isArray(userData.groups) && userData.groups.length > 0) {
+            // 使用第一个角色
+            userRole = userData.groups[0]
+          } else if (userData.role) {
+            userRole = userData.role
+          } else if (userData.user_type) {
+            userRole = userData.user_type
+          }
+          
           // 更新用户信息，包括角色
           const updatedUser = {
             username: userData.username || getters.username,
             institutionType: userData.institution_type || userData.institutionType || '',
-            role: userData.role || userData.user_type || ''
+            role: userRole
           }
           commit('setUser', updatedUser)
           return updatedUser
         } else if (data && data.username) {
           // 兼容旧格式
+          // 从 groups 数组中提取角色
+          let userRole = ''
+          if (data.groups && Array.isArray(data.groups) && data.groups.length > 0) {
+            userRole = data.groups[0]
+          } else if (data.role) {
+            userRole = data.role
+          } else if (data.user_type) {
+            userRole = data.user_type
+          }
+          
           const updatedUser = {
             username: data.username,
             institutionType: data.institution_type || data.institutionType || '',
-            role: data.role || data.user_type || ''
+            role: userRole
           }
           commit('setUser', updatedUser)
           return updatedUser

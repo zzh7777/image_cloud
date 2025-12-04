@@ -70,17 +70,20 @@
     <!-- 搜索表单 -->
     <el-form :inline="true" :model="searchForm" class="search-form">
       <el-form-item label="任务名称">
-        <el-input v-model="searchForm.taskName" placeholder="请输入任务名称" clearable></el-input>
+        <el-input v-model="searchForm.taskName" placeholder="请输入任务名称" clearable @keyup.enter.native="handleQuery"></el-input>
+      </el-form-item>
+      <el-form-item label="医院名称">
+        <el-input v-model="searchForm.hospitalName" placeholder="请输入医院名称" clearable @keyup.enter.native="handleQuery"></el-input>
       </el-form-item>
       <el-form-item>
-        <el-button type="primary" icon="el-icon-search">查询</el-button>
-        <el-button icon="el-icon-refresh-left">重置</el-button>
+        <el-button type="primary" icon="el-icon-search" @click="handleQuery" :loading="loading">查询</el-button>
+        <el-button icon="el-icon-refresh-left" @click="handleReset">重置</el-button>
       </el-form-item>
     </el-form>
 
     <!-- 数据表格 -->
     <div class="table-wrapper">
-      <el-table :data="tableData" style="width: 100%; min-width: 1200px;" border>
+      <el-table :data="tableData" style="width: 100%; min-width: 1200px;" border v-loading="loading">
         <el-table-column prop="taskName" label="任务名称" min-width="180"></el-table-column>
         <el-table-column prop="hospitalName" label="医院名称" min-width="150"></el-table-column>
         <el-table-column prop="totalWarnings" label="预警总数" min-width="120" align="center"></el-table-column>
@@ -97,12 +100,17 @@
         <el-table-column prop="positiveRate" label="阳性率" min-width="100" align="center">
           <template slot-scope="scope">
             <span :style="{ color: getPositiveRateColor(scope.row.positiveRate), fontWeight: 'bold' }">
-              {{ scope.row.positiveRate }}
+              {{ formatPositiveRate(scope.row.positiveRate) }}
             </span>
           </template>
         </el-table-column>
         <el-table-column prop="patientCount" label="患者数" min-width="100" align="center"></el-table-column>
         <el-table-column prop="departmentCount" label="科室数" min-width="100" align="center"></el-table-column>
+        <el-table-column prop="taskCompletionTime" label="任务完成时间" min-width="180" align="center">
+          <template slot-scope="scope">
+            {{ formatDateTime(scope.row.taskCompletionTime) }}
+          </template>
+        </el-table-column>
       </el-table>
     </div>
 
@@ -110,139 +118,286 @@
     <el-pagination
       @size-change="handleSizeChange"
       @current-change="handleCurrentChange"
-      :current-page="currentPage"
+      :current-page="pagination.currentPage"
       :page-sizes="[10, 20, 50, 100]"
-      :page-size="pageSize"
+      :page-size="pagination.pageSize"
       layout="total, sizes, prev, pager, next, jumper"
-      :total="total"
+      :total="pagination.total"
       class="pagination">
     </el-pagination>
   </div>
 </template>
 
 <script>
+import { fetchWithAuth } from '@/utils/api'
+
 export default {
   name: 'DataBaseView',
   data() {
     return {
+      loading: false,
       searchForm: {
-        taskName: ''
+        taskName: '',
+        hospitalName: ''
       },
       summaryData: {
-        totalWarnings: 1250,
-        totalViolations: 856,
-        totalNoViolations: 394,
-        avgPositiveRate: '8.5%',
-        totalPatients: 5680,
-        totalDepartments: 45
+        totalWarnings: 0,
+        totalViolations: 0,
+        totalNoViolations: 0,
+        avgPositiveRate: '0.00%',
+        totalPatients: 0,
+        totalDepartments: 0
       },
-      tableData: [
-        {
-          taskName: '虚假检查监测',
-          hospitalName: '第一人民医院',
-          totalWarnings: 150,
-          violations: 120,
-          noViolations: 30,
-          positiveRate: '12.5%',
-          patientCount: 680,
-          departmentCount: 8
-        },
-        {
-          taskName: '重复检查监测',
-          hospitalName: '第二人民医院',
-          totalWarnings: 200,
-          violations: 145,
-          noViolations: 55,
-          positiveRate: '9.8%',
-          patientCount: 820,
-          departmentCount: 10
-        },
-        {
-          taskName: '缺失检查监测',
-          hospitalName: '第三人民医院',
-          totalWarnings: 180,
-          violations: 98,
-          noViolations: 82,
-          positiveRate: '6.2%',
-          patientCount: 750,
-          departmentCount: 9
-        },
-        {
-          taskName: '过度检查监测',
-          hospitalName: '第四人民医院',
-          totalWarnings: 120,
-          violations: 56,
-          noViolations: 64,
-          positiveRate: '4.5%',
-          patientCount: 580,
-          departmentCount: 7
-        },
-        {
-          taskName: '虚假检查监测',
-          hospitalName: '第五人民医院',
-          totalWarnings: 90,
-          violations: 45,
-          noViolations: 45,
-          positiveRate: '3.8%',
-          patientCount: 420,
-          departmentCount: 6
-        },
-        {
-          taskName: '重复检查监测',
-          hospitalName: '第六人民医院',
-          totalWarnings: 160,
-          violations: 88,
-          noViolations: 72,
-          positiveRate: '7.2%',
-          patientCount: 690,
-          departmentCount: 8
-        },
-        {
-          taskName: '缺失检查监测',
-          hospitalName: '第七人民医院',
-          totalWarnings: 110,
-          violations: 62,
-          noViolations: 48,
-          positiveRate: '5.5%',
-          patientCount: 520,
-          departmentCount: 7
-        },
-        {
-          taskName: '过度检查监测',
-          hospitalName: '第八人民医院',
-          totalWarnings: 140,
-          violations: 78,
-          noViolations: 62,
-          positiveRate: '6.8%',
-          patientCount: 620,
-          departmentCount: 8
-        },
-        {
-          taskName: '虚假检查监测',
-          hospitalName: '第九人民医院',
-          totalWarnings: 100,
-          violations: 52,
-          noViolations: 48,
-          positiveRate: '4.2%',
-          patientCount: 480,
-          departmentCount: 6
-        }
-      ],
-      currentPage: 1,
-      pageSize: 10,
-      total: 9
+      tableData: [],
+      pagination: {
+        currentPage: 1,
+        pageSize: 10,
+        total: 0
+      }
     }
   },
+  mounted() {
+    this.fetchStatisticsList()
+  },
   methods: {
+    /**
+     * 获取统计数据列表
+     */
+    async fetchStatisticsList() {
+      this.loading = true
+      
+      const accessToken = this.$store.getters.accessToken
+      if (!accessToken) {
+        this.$message.error('未登录，请先登录')
+        this.loading = false
+        return
+      }
+      
+      try {
+        // 构建请求参数
+        const params = new URLSearchParams({
+          page: this.pagination.currentPage,
+          page_size: this.pagination.pageSize
+        })
+        
+        // 添加搜索条件（根据接口文档，支持模糊匹配）
+        if (this.searchForm.taskName && this.searchForm.taskName.trim()) {
+          params.append('task_name', this.searchForm.taskName.trim())
+        }
+        if (this.searchForm.hospitalName && this.searchForm.hospitalName.trim()) {
+          params.append('hospital_name', this.searchForm.hospitalName.trim())
+        }
+        
+        const url = `/api/v1/statistics/?${params.toString()}`
+        console.log('请求统计数据列表，URL:', url)
+        console.log('搜索条件:', {
+          taskName: this.searchForm.taskName,
+          hospitalName: this.searchForm.hospitalName
+        })
+        
+        const response = await fetchWithAuth(
+          url,
+          {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          },
+          this.$store,
+          this.$router
+        )
+        
+        if (!response.ok) {
+          const errorText = await response.text()
+          let errorMessage = `获取统计数据失败: ${response.status} ${response.statusText}`
+          try {
+            const errorData = JSON.parse(errorText)
+            errorMessage = errorData.message || errorMessage
+          } catch (e) {
+            // 如果响应不是JSON，使用默认错误消息
+          }
+          throw new Error(errorMessage)
+        }
+        
+        const data = await response.json()
+        
+        // 检查响应码（统一响应格式中的 code 字段）
+        if (data && data.code !== undefined && data.code !== 0) {
+          // code 非0表示错误
+          const errorMessage = data.message || `获取统计数据失败: code ${data.code}`
+          throw new Error(errorMessage)
+        }
+        
+        // 处理统一响应格式：{ code: 0, message: "success", data: { count, results } }
+        if (data && data.code === 0 && data.data && data.data.results) {
+          // 映射后端数据到前端显示格式
+          this.tableData = data.data.results.map(item => ({
+            id: item.id,
+            task: item.task,
+            hospital: item.hospital,
+            taskName: item.task_name || '',
+            hospitalName: item.hospital_name || '',
+            totalWarnings: item.total_warning_count || 0,
+            violations: item.confirmed_violation_count || 0,
+            noViolations: item.no_violation_count || 0,
+            positiveRate: item.positive_rate || '0.0000',
+            patientCount: item.patient_count || 0,
+            departmentCount: item.department_count || 0,
+            taskCompletionTime: item.task_completion_time || '',
+            updatedAt: item.updated_at || ''
+          }))
+          
+          // 更新分页信息
+          this.pagination.total = data.data.count || 0
+          
+          // 计算汇总数据（从当前页数据计算，如果需要全局汇总可能需要单独接口）
+          this.calculateSummaryData()
+          
+          console.log('统计数据列表加载成功，共', data.data.count, '条记录，当前页', this.tableData.length, '条')
+        } else if (data && data.results) {
+          // 兼容旧格式（没有 code 字段的情况）
+          this.tableData = data.results.map(item => ({
+            id: item.id,
+            task: item.task,
+            hospital: item.hospital,
+            taskName: item.task_name || '',
+            hospitalName: item.hospital_name || '',
+            totalWarnings: item.total_warning_count || 0,
+            violations: item.confirmed_violation_count || 0,
+            noViolations: item.no_violation_count || 0,
+            positiveRate: item.positive_rate || '0.0000',
+            patientCount: item.patient_count || 0,
+            departmentCount: item.department_count || 0,
+            taskCompletionTime: item.task_completion_time || '',
+            updatedAt: item.updated_at || ''
+          }))
+          this.pagination.total = data.count || 0
+          this.calculateSummaryData()
+        } else {
+          this.tableData = []
+          this.pagination.total = 0
+          this.summaryData = {
+            totalWarnings: 0,
+            totalViolations: 0,
+            totalNoViolations: 0,
+            avgPositiveRate: '0.00%',
+            totalPatients: 0,
+            totalDepartments: 0
+          }
+        }
+      } catch (error) {
+        console.error('获取统计数据列表错误:', error)
+        this.$message.error(error.message || '获取统计数据失败，请稍后重试')
+      } finally {
+        this.loading = false
+      }
+    },
+    
+    /**
+     * 计算汇总数据（从当前列表数据计算）
+     * 注意：如果需要全局汇总，可能需要调用单独的汇总接口
+     */
+    calculateSummaryData() {
+      if (this.tableData.length === 0) {
+        this.summaryData = {
+          totalWarnings: 0,
+          totalViolations: 0,
+          totalNoViolations: 0,
+          avgPositiveRate: '0.00%',
+          totalPatients: 0,
+          totalDepartments: 0
+        }
+        return
+      }
+      
+      // 计算总和
+      const totals = this.tableData.reduce((acc, item) => {
+        acc.totalWarnings += item.totalWarnings || 0
+        acc.totalViolations += item.violations || 0
+        acc.totalNoViolations += item.noViolations || 0
+        acc.totalPatients += item.patientCount || 0
+        acc.totalDepartments += item.departmentCount || 0
+        return acc
+      }, {
+        totalWarnings: 0,
+        totalViolations: 0,
+        totalNoViolations: 0,
+        totalPatients: 0,
+        totalDepartments: 0
+      })
+      
+      // 计算平均阳性率
+      const totalPositiveRate = this.tableData.reduce((sum, item) => {
+        const rate = parseFloat(item.positiveRate) || 0
+        return sum + rate
+      }, 0)
+      const avgPositiveRate = this.tableData.length > 0 
+        ? (totalPositiveRate / this.tableData.length).toFixed(2) 
+        : 0
+      
+      this.summaryData = {
+        totalWarnings: totals.totalWarnings,
+        totalViolations: totals.totalViolations,
+        totalNoViolations: totals.totalNoViolations,
+        avgPositiveRate: `${avgPositiveRate}%`,
+        totalPatients: totals.totalPatients,
+        totalDepartments: totals.totalDepartments
+      }
+    },
+    
+    /**
+     * 查询按钮点击事件
+     */
+    handleQuery() {
+      this.pagination.currentPage = 1 // 重置到第一页
+      this.fetchStatisticsList()
+    },
+    
+    /**
+     * 重置按钮点击事件
+     */
+    handleReset() {
+      this.searchForm = {
+        taskName: '',
+        hospitalName: ''
+      }
+      this.pagination.currentPage = 1
+      this.fetchStatisticsList()
+    },
+    
+    /**
+     * 分页大小改变
+     */
     handleSizeChange(val) {
-      this.pageSize = val
+      this.pagination.pageSize = val
+      this.pagination.currentPage = 1
+      this.fetchStatisticsList()
     },
+    
+    /**
+     * 当前页改变
+     */
     handleCurrentChange(val) {
-      this.currentPage = val
+      this.pagination.currentPage = val
+      this.fetchStatisticsList()
     },
-    getPositiveRateColor(rate) {
+    
+    /**
+     * 格式化阳性率显示（后端返回的是字符串，如 "0.0500"）
+     */
+    formatPositiveRate(rate) {
+      if (!rate) return '0.00%'
       const value = parseFloat(rate)
-      if (value === 0) {
+      if (isNaN(value)) return '0.00%'
+      return `${(value * 100).toFixed(2)}%`
+    },
+    
+    /**
+     * 根据阳性率值返回颜色
+     */
+    getPositiveRateColor(rate) {
+      const value = parseFloat(rate) * 100 // 转换为百分比
+      if (isNaN(value) || value === 0) {
         return '#909399'
       } else if (value < 1) {
         return '#67C23A'
@@ -252,6 +407,26 @@ export default {
         return '#E6A23C'
       } else {
         return '#F56C6C'
+      }
+    },
+    
+    /**
+     * 格式化日期时间
+     */
+    formatDateTime(dateTimeStr) {
+      if (!dateTimeStr) return '-'
+      try {
+        const date = new Date(dateTimeStr)
+        const year = date.getFullYear()
+        const month = String(date.getMonth() + 1).padStart(2, '0')
+        const day = String(date.getDate()).padStart(2, '0')
+        const hours = String(date.getHours()).padStart(2, '0')
+        const minutes = String(date.getMinutes()).padStart(2, '0')
+        const seconds = String(date.getSeconds()).padStart(2, '0')
+        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+      } catch (error) {
+        console.error('日期格式化错误:', error)
+        return dateTimeStr
       }
     }
   }

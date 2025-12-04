@@ -1455,12 +1455,34 @@ export default {
             return
           } else {
             // 错误：code 非 0
-            // 如果是 403 权限错误，使用格式化函数转换为中文
-            let errorMessage = data.message || `删除规则失败: code ${data.code}`
-            if (response.status === 403) {
-              errorMessage = this.formatPermissionError(errorMessage, 'delete')
+            const errorMessage = data.message || `删除规则失败: code ${data.code}`
+            
+            // 检查是否是关联错误（code 400 且包含关联关键词）
+            if (data.code === 400 && (
+              errorMessage.includes('关联') || 
+              errorMessage.includes('referenced') ||
+              errorMessage.includes('被其他数据关联') ||
+              errorMessage.includes('foreign key') ||
+              errorMessage.includes('无法删除')
+            )) {
+              // 使用 alert 显示友好的错误提示
+              this.$alert(
+                errorMessage + '\n\n请先解除该规则与其他数据的关联关系，然后再尝试删除。',
+                '无法删除',
+                {
+                  confirmButtonText: '我知道了',
+                  type: 'warning'
+                }
+              )
+              return // 不抛出错误，因为已经显示了友好的提示
             }
-            throw new Error(errorMessage)
+            
+            // 其他错误：如果是 403 权限错误，使用格式化函数转换为中文
+            let finalErrorMessage = errorMessage
+            if (response.status === 403 || data.code === 403) {
+              finalErrorMessage = this.formatPermissionError(errorMessage, 'delete')
+            }
+            throw new Error(finalErrorMessage)
           }
         }
 
@@ -1473,6 +1495,38 @@ export default {
             this.$store.commit('clearUser')
             this.$router.push('/login')
             return
+          } else if (response.status === 400) {
+            // 400 错误：可能是关联错误或其他参数错误
+            if (data) {
+              if (data.code !== undefined && data.message) {
+                // 统一响应格式
+                errorMessage = data.message
+                
+                // 检查是否是关联错误
+                if (errorMessage.includes('关联') || 
+                    errorMessage.includes('referenced') ||
+                    errorMessage.includes('被其他数据关联') ||
+                    errorMessage.includes('foreign key') ||
+                    errorMessage.includes('无法删除')) {
+                  // 使用 alert 显示友好的错误提示
+                  this.$alert(
+                    errorMessage + '\n\n请先解除该规则与其他数据的关联关系，然后再尝试删除。',
+                    '无法删除',
+                    {
+                      confirmButtonText: '我知道了',
+                      type: 'warning'
+                    }
+                  )
+                  return // 不抛出错误，因为已经显示了友好的提示
+                }
+              } else if (data.detail) {
+                errorMessage = data.detail
+              } else if (data.message) {
+                errorMessage = data.message
+              } else if (data.error) {
+                errorMessage = data.error
+              }
+            }
           } else if (response.status === 403) {
             // 使用格式化函数处理权限错误
             if (data && data.message) {

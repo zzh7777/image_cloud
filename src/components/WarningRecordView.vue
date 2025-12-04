@@ -9,8 +9,22 @@
 
     <!-- 主要内容区域：左右分栏布局 -->
     <div class="main-content" v-loading="loading" element-loading-text="加载中...">
+      <!-- 错误信息显示 -->
+      <div v-if="errorMessage" class="error-message" style="padding: 20px; background: #fff; margin: 20px; border-radius: 8px; box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);">
+        <el-alert
+          :title="errorMessage"
+          type="error"
+          :closable="false"
+          show-icon>
+        </el-alert>
+        <div style="margin-top: 15px;">
+          <el-button type="primary" @click="retryLoad">重试</el-button>
+          <el-button @click="goBack">返回</el-button>
+        </div>
+      </div>
+      
       <!-- 左侧内容区域 -->
-      <div class="left-content">
+      <div v-else class="left-content">
         <!-- 1. 预警信息 -->
         <div class="warning-info-section">
           <h3 class="section-title">预警信息</h3>
@@ -100,100 +114,59 @@
           </div>
         </div>
 
-        <!-- 审核操作区域 -->
-        <div v-if="showReviewForm" class="review-action">
-          <h3 class="section-title">{{ getReviewTitle() }}</h3>
-          <el-form :model="reviewForm" label-width="100px" size="small">
-            <!-- 初审表单 -->
-            <div v-if="currentStatus === '待初审'">
-              <el-form-item label="初审结果">
-                <el-radio-group v-model="reviewForm.result">
-                  <el-radio label="明确违规">明确违规</el-radio>
-                  <el-radio label="没有违规">没有违规</el-radio>
-                </el-radio-group>
-              </el-form-item>
-              <el-form-item label="初审意见">
-                <el-input 
-                  v-model="reviewForm.opinion" 
-                  type="textarea" 
-                  :rows="4"
-                  placeholder="请输入初审意见">
-                </el-input>
-              </el-form-item>
             </div>
             
-            <!-- 医院复核表单 -->
-            <div v-if="currentStatus === '待医院复核'">
-              <el-form-item label="复核结果">
-                <el-radio-group v-model="reviewForm.result">
-                  <el-radio label="没有违规">没有违规</el-radio>
-                  <el-radio label="确认违规">确认违规</el-radio>
-                </el-radio-group>
-              </el-form-item>
-              <el-form-item label="申诉理由">
-                <el-input 
-                  v-model="reviewForm.appealReason" 
-                  type="textarea" 
-                  :rows="4"
-                  placeholder="请输入申诉理由">
-                </el-input>
-              </el-form-item>
-              <el-form-item label="申诉材料">
-                <el-upload
-                  :action="uploadUrl"
-                  :on-success="handleUploadSuccess"
-                  :file-list="reviewForm.fileList">
-                  <el-button size="small" type="primary">上传文件+</el-button>
-                </el-upload>
-              </el-form-item>
-            </div>
-            
-            <!-- 终审表单 -->
-            <div v-if="currentStatus === '待终审'">
-              <el-form-item label="终审结果">
-                <el-radio-group v-model="reviewForm.result">
-                  <el-radio label="明确违规">明确违规</el-radio>
-                  <el-radio label="没有违规">没有违规</el-radio>
-                </el-radio-group>
-              </el-form-item>
-              <el-form-item label="终审意见">
-                <el-input 
-                  v-model="reviewForm.opinion" 
-                  type="textarea" 
-                  :rows="4"
-                  placeholder="请输入终审意见">
-                </el-input>
-              </el-form-item>
-            </div>
-            
-            <el-form-item>
-              <el-button type="primary" @click="submitReview">确定</el-button>
-              <el-button @click="showReviewForm = false">取消</el-button>
-            </el-form-item>
-          </el-form>
-        </div>
-      </div>
-
       <!-- 右侧内容区域：审核流程 -->
-      <div class="right-content">
+      <div v-if="!errorMessage" class="right-content">
         <div class="review-process">
           <h3 class="section-title">审核流程</h3>
           
           <!-- 流程时间线 -->
           <el-timeline>
-        <!-- 初审 -->
-        <el-timeline-item
-          :timestamp="reviewProcess.firstReview.time"
-          placement="top"
-          :color="getTimelineColor(reviewProcess.firstReview.status)"
-        >
-          <el-card>
-            <h4>初审</h4>
-            <div class="process-content">
+            <!-- 初审 -->
+            <el-timeline-item
+              v-if="showFirstReview || canDoInitialReview"
+              :timestamp="showFirstReview ? formatDateTime(reviewProcess.firstReview.time) : '待审核'"
+              placement="top"
+              :color="showFirstReview ? '#67C23A' : '#E4E7ED'"
+            >
+              <el-card>
+                <h4>初审</h4>
+                <!-- 初审表单（当需要审核时显示） -->
+                <div v-if="showReviewForm && reviewFormType === 'initial'" class="review-form-in-card">
+                  <el-form :model="reviewForm" label-width="100px" size="small">
+                    <el-form-item label="初审结果" required>
+                      <el-radio-group v-model="reviewForm.result" class="review-radio-group">
+                        <el-radio label="confirmed_violation">明确违规</el-radio>
+                        <el-radio label="suspected_violation">疑似违规</el-radio>
+                        <el-radio label="no_violation">没有违规</el-radio>
+                </el-radio-group>
+              </el-form-item>
+                    <el-form-item label="初审意见">
+                <el-input 
+                  v-model="reviewForm.opinion" 
+                  type="textarea" 
+                        :rows="3"
+                        placeholder="请输入初审意见（选填）">
+                </el-input>
+              </el-form-item>
+            <el-form-item>
+                      <el-button type="primary" @click="submitReview" :loading="loading" size="small">确定</el-button>
+                      <el-button @click="showReviewForm = false" size="small">取消</el-button>
+            </el-form-item>
+          </el-form>
+        </div>
+                <!-- 初审结果展示（当已审核时显示） -->
+                <div v-else class="process-content">
+                  <div class="info-row" v-if="reviewProcess.firstReview.reviewer">
+                    <span class="label">初审人：</span>
+                    <span>{{ reviewProcess.firstReview.reviewer }}</span>
+      </div>
               <div class="info-row">
                 <span class="label">初审结果：</span>
                 <el-tag v-if="reviewProcess.firstReview.result" 
-                  :type="reviewProcess.firstReview.result === '明确违规' ? 'danger' : 'success'" 
+                      :type="reviewProcess.firstReview.result === '明确违规' ? 'danger' : 
+                             (reviewProcess.firstReview.result === '疑似违规' ? 'warning' : 'success')" 
                   size="small">
                   {{ reviewProcess.firstReview.result }}
                 </el-tag>
@@ -207,38 +180,89 @@
           </el-card>
         </el-timeline-item>
 
-        <!-- 医院复核 -->
+            <!-- 医院复核（仅在初审结果为"明确违规"或"疑似违规"时显示） -->
         <el-timeline-item
-          :timestamp="reviewProcess.hospitalReview.time"
+              v-if="(showHospitalReview || canDoHospitalReview) && !isFirstReviewNoViolation"
+              :timestamp="reviewProcess.hospitalReview.time ? formatDateTime(reviewProcess.hospitalReview.time) : '待复核'"
           placement="top"
-          :color="getTimelineColor(reviewProcess.hospitalReview.status)"
+              :color="reviewProcess.hospitalReview.time ? '#67C23A' : '#E4E7ED'"
         >
           <el-card>
             <h4>医院复核</h4>
-            <div class="process-content">
+                <!-- 医院复核表单（当需要复核时显示） -->
+                <div v-if="showReviewForm && reviewFormType === 'hospital'" class="review-form-in-card">
+                  <el-form :model="reviewForm" label-width="100px" size="small">
+                    <el-form-item label="复核结果" required>
+                      <el-input 
+                        v-model="reviewForm.result" 
+                        type="textarea" 
+                        :rows="3"
+                        placeholder="请输入复核结果和意见（必填）">
+                      </el-input>
+                    </el-form-item>
+                    <el-form-item label="申诉理由">
+                      <el-input 
+                        v-model="reviewForm.appealReason" 
+                        type="textarea" 
+                        :rows="3"
+                        placeholder="如果对预警结果有异议，请填写申诉理由（选填）">
+                      </el-input>
+                    </el-form-item>
+                    <el-form-item label="申诉截图">
+                      <el-upload
+                        :auto-upload="false"
+                        :on-change="handleScreenshotChange"
+                        :limit="1"
+                        accept="image/*">
+                        <el-button size="small" type="primary">选择截图</el-button>
+                      </el-upload>
+                      <div class="el-upload__tip" style="margin-top: 8px; font-size: 12px; color: #909399;">支持图片格式（选填）</div>
+                    </el-form-item>
+                    <el-form-item label="补充材料">
+                      <el-upload
+                        :auto-upload="false"
+                        :on-change="handleSupplementaryChange"
+                        :limit="1">
+                        <el-button size="small" type="primary">选择文件</el-button>
+                      </el-upload>
+                      <div class="el-upload__tip" style="margin-top: 8px; font-size: 12px; color: #909399;">支持PDF、图片等格式（选填）</div>
+                    </el-form-item>
+                    <el-form-item>
+                      <el-button type="primary" @click="submitReview" :loading="loading" size="small">确定</el-button>
+                      <el-button @click="showReviewForm = false" size="small">取消</el-button>
+                    </el-form-item>
+                  </el-form>
+                </div>
+                <!-- 医院复核结果展示（当已复核时显示） -->
+                <div v-else class="process-content">
+                  <div class="info-row" v-if="reviewProcess.hospitalReview.reviewer">
+                    <span class="label">复核人：</span>
+                    <span>{{ reviewProcess.hospitalReview.reviewer }}</span>
+                  </div>
               <div class="info-row">
                 <span class="label">复核结果：</span>
-                <el-tag v-if="reviewProcess.hospitalReview.result" 
-                  :type="reviewProcess.hospitalReview.result === '没有违规' ? 'success' : 'danger'" 
-                  size="small">
-                  {{ reviewProcess.hospitalReview.result }}
-                </el-tag>
+                    <span v-if="reviewProcess.hospitalReview.result">{{ reviewProcess.hospitalReview.result }}</span>
                 <span v-else class="empty-text">待复核</span>
               </div>
               <div class="info-row" v-if="reviewProcess.hospitalReview.appealReason">
                 <span class="label">申诉理由：</span>
                 <span>{{ reviewProcess.hospitalReview.appealReason }}</span>
               </div>
-              <div class="info-row" v-if="reviewProcess.hospitalReview.materials && reviewProcess.hospitalReview.materials.length > 0">
+                  <div class="info-row" v-if="reviewProcess.hospitalReview.appealMaterials">
                 <span class="label">申诉材料：</span>
                 <div class="materials">
                   <el-link 
-                    v-for="(file, index) in reviewProcess.hospitalReview.materials" 
-                    :key="index"
                     type="primary"
                     :underline="false"
-                    @click="viewFile(file)">
-                    【{{ file }}】
+                        @click="previewMaterials">
+                        【查看申诉材料】
+                      </el-link>
+                      <el-link 
+                        type="primary"
+                        :underline="false"
+                        @click="previewScreenshot"
+                        style="margin-left: 10px;">
+                        【查看申诉截图】
                   </el-link>
                 </div>
               </div>
@@ -246,15 +270,44 @@
           </el-card>
         </el-timeline-item>
 
-        <!-- 终审 -->
+            <!-- 终审（仅在初审结果为"明确违规"或"疑似违规"时显示） -->
         <el-timeline-item
-          :timestamp="reviewProcess.finalReview.time"
+              v-if="(showFinalReview || canDoFinalReview) && !isFirstReviewNoViolation"
+              :timestamp="reviewProcess.finalReview.time ? formatDateTime(reviewProcess.finalReview.time) : '待终审'"
           placement="top"
-          :color="getTimelineColor(reviewProcess.finalReview.status)"
+              :color="reviewProcess.finalReview.time ? '#67C23A' : '#E4E7ED'"
         >
           <el-card>
             <h4>终审</h4>
-            <div class="process-content">
+                <!-- 终审表单（当需要终审时显示） -->
+                <div v-if="showReviewForm && reviewFormType === 'final'" class="review-form-in-card">
+                  <el-form :model="reviewForm" label-width="100px" size="small">
+                    <el-form-item label="终审结果" required>
+                      <el-radio-group v-model="reviewForm.result" class="review-radio-group">
+                        <el-radio label="confirmed_violation">明确违规</el-radio>
+                        <el-radio label="no_violation">没有违规</el-radio>
+                      </el-radio-group>
+                    </el-form-item>
+                    <el-form-item label="终审意见">
+                      <el-input 
+                        v-model="reviewForm.opinion" 
+                        type="textarea" 
+                        :rows="3"
+                        placeholder="请输入终审意见（选填）">
+                      </el-input>
+                    </el-form-item>
+                    <el-form-item>
+                      <el-button type="primary" @click="submitReview" :loading="loading" size="small">确定</el-button>
+                      <el-button @click="showReviewForm = false" size="small">取消</el-button>
+                    </el-form-item>
+                  </el-form>
+                </div>
+                <!-- 终审结果展示（当已终审时显示） -->
+                <div v-else class="process-content">
+                  <div class="info-row" v-if="reviewProcess.finalReview.reviewer">
+                    <span class="label">终审人：</span>
+                    <span>{{ reviewProcess.finalReview.reviewer }}</span>
+                  </div>
               <div class="info-row">
                 <span class="label">终审结果：</span>
                 <el-tag v-if="reviewProcess.finalReview.result" 
@@ -272,9 +325,190 @@
           </el-card>
         </el-timeline-item>
       </el-timeline>
+          
+          <!-- 审核操作按钮 -->
+          <div class="review-actions" style="margin-top: 20px;">
+            <el-button 
+              v-if="canDoInitialReview"
+              type="primary" 
+              @click="openReviewForm('initial')"
+              size="small">
+              进行初审
+            </el-button>
+            <el-button 
+              v-if="canDoHospitalReview"
+              type="primary" 
+              @click="openReviewForm('hospital')"
+              size="small">
+              进行复核
+            </el-button>
+            <el-button 
+              v-if="canDoFinalReview"
+              type="primary" 
+              @click="openReviewForm('final')"
+              size="small">
+              进行终审
+            </el-button>
+          </div>
         </div>
       </div>
     </div>
+
+    <!-- 截图预览对话框 -->
+    <div v-if="screenshotDialogVisible" class="screenshot-dialog-overlay" @click.self="closeScreenshotDialog">
+      <div class="screenshot-dialog-container">
+        <div class="screenshot-dialog-header">
+          <span class="dialog-title">申诉截图</span>
+          <el-button type="text" icon="el-icon-close" @click="closeScreenshotDialog" class="close-btn"></el-button>
+        </div>
+        <div class="screenshot-dialog-body">
+          <div v-if="screenshotLoading" class="screenshot-loading">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">正在加载图片...</div>
+          </div>
+          <img 
+            v-if="screenshotUrl" 
+            :src="screenshotUrl" 
+            alt="申诉截图" 
+            class="screenshot-image"
+            :class="{ 'image-loading': screenshotLoading }"
+            @load="handleScreenshotLoad"
+            @error="handleScreenshotError"
+          />
+        </div>
+      </div>
+    </div>
+
+    <!-- 申诉材料预览对话框 -->
+    <el-dialog
+      title="申诉材料预览"
+      :visible.sync="materialsDialogVisible"
+      width="80%"
+      :close-on-click-modal="false"
+      @close="closeMaterialsDialog"
+    >
+      <div v-if="materialsFileName" class="file-viewer">
+        <!-- 文件信息 -->
+        <div class="file-info" style="margin-bottom: 20px;">
+          <el-descriptions :column="2" border>
+            <el-descriptions-item label="文件名称">{{ materialsFileName }}</el-descriptions-item>
+            <el-descriptions-item label="文件类型">{{ materialsFileType || '-' }}</el-descriptions-item>
+          </el-descriptions>
+        </div>
+
+        <!-- 文件预览区域 -->
+        <div class="file-preview">
+          <div v-if="materialsFileLoading" class="loading-container">
+            <i class="el-icon-loading"></i>
+            <p>正在加载文件...</p>
+          </div>
+          <div v-else-if="materialsFileError" class="error-container">
+            <i class="el-icon-warning"></i>
+            <p>{{ materialsFileError }}</p>
+            <el-button type="primary" @click="downloadMaterials">下载文件</el-button>
+          </div>
+          <div v-else-if="isPdfFile" class="pdf-viewer">
+            <iframe
+              :src="materialsFileUrl"
+              frameborder="0"
+              style="width: 100%; height: 600px;"
+              @load="handleMaterialsFileLoad"
+              @error="handleMaterialsFileError"
+            ></iframe>
+          </div>
+          <div v-else-if="isImageFile" class="image-viewer">
+            <img
+              :src="materialsFileUrl"
+              alt="申诉材料"
+              style="max-width: 100%; max-height: 600px; display: block; margin: 0 auto; border-radius: 4px; box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);"
+              @load="handleMaterialsFileLoad"
+              @error="handleMaterialsFileError"
+            />
+          </div>
+          <div v-else-if="isExcelFile" class="excel-viewer" style="width: 100%; max-width: 100%; box-sizing: border-box; overflow: hidden;">
+            <div v-if="excelSheets.length > 1" class="excel-sheet-tabs" style="margin-bottom: 10px; width: 100%; max-width: 100%; box-sizing: border-box;">
+              <el-tabs v-model="currentSheetIndex" @tab-click="handleSheetChange">
+                <el-tab-pane
+                  v-for="(sheet, index) in excelSheets"
+                  :key="index"
+                  :label="sheet.name"
+                  :name="String(index)"
+                ></el-tab-pane>
+              </el-tabs>
+            </div>
+            <div v-if="currentSheetData" class="excel-limit-warning" style="margin-bottom: 10px; padding: 10px; background-color: #fff7e6; border: 1px solid #ffd591; border-radius: 4px; width: 100%; max-width: 100%; box-sizing: border-box;">
+              <i class="el-icon-warning" style="color: #fa8c16;"></i>
+              <span style="margin-left: 8px; color: #fa8c16;">
+                Excel仅展示前10行，查看完整内容请
+                <el-button type="text" size="small" @click="downloadMaterials" style="padding: 0; margin-left: 5px; color: #409EFF;">下载</el-button>
+              </span>
+            </div>
+            <div class="excel-table-container" style="width: 100%; max-width: 100%; max-height: 600px; overflow-x: auto; overflow-y: auto; border: 1px solid #dcdfe6; box-sizing: border-box;">
+              <table v-if="excelData && currentSheetData" class="excel-table" style="border-collapse: collapse; table-layout: auto;">
+                <thead style="position: sticky; top: 0; z-index: 10; background-color: #f5f7fa;">
+                  <tr>
+                    <th
+                      v-for="(cell, colIndex) in currentSheetData.headers || []"
+                      :key="colIndex"
+                      style="border: 1px solid #dcdfe6; padding: 10px 12px; background-color: #f5f7fa; font-weight: 600; text-align: left; min-width: 120px; white-space: nowrap;"
+                    >
+                      {{ cell }}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(row, rowIndex) in currentSheetData.rows || []" :key="rowIndex">
+                    <td
+                      v-for="(cell, colIndex) in row"
+                      :key="colIndex"
+                      style="border: 1px solid #dcdfe6; padding: 10px 12px; min-width: 120px; word-break: break-word; white-space: normal;"
+                    >
+                      {{ cell }}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              <div v-else style="padding: 20px; text-align: center; color: #909399;">
+                <i class="el-icon-loading"></i>
+                <p>正在解析 Excel 文件...</p>
+              </div>
+            </div>
+          </div>
+          <div v-else-if="isTxtFile" class="txt-viewer" style="width: 100%; max-width: 100%; box-sizing: border-box; display: flex; align-items: flex-start; justify-content: flex-start;">
+            <div v-if="txtContent !== ''" class="txt-content" style="
+              width: 100%;
+              max-width: 100%;
+              max-height: 600px;
+              overflow: auto;
+              padding: 20px;
+              background: #fff;
+              border: 1px solid #e4e7ed;
+              border-radius: 4px;
+              font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+              font-size: 14px;
+              line-height: 1.6;
+              color: #333;
+              white-space: pre-wrap;
+              word-wrap: break-word;
+              text-align: left;
+            ">{{ txtContent }}</div>
+            <div v-else style="padding: 20px; text-align: center; color: #909399;">
+              <i class="el-icon-loading"></i>
+              <p>正在加载文本文件...</p>
+            </div>
+          </div>
+          <div v-else class="unsupported-viewer">
+            <i class="el-icon-document"></i>
+            <p>该文件格式不支持在线预览</p>
+            <el-button type="primary" @click="downloadMaterials">下载文件</el-button>
+          </div>
+        </div>
+      </div>
+      <div slot="footer" class="dialog-footer">
+        <el-button @click="materialsDialogVisible = false">关闭</el-button>
+        <el-button type="primary" @click="downloadMaterials">下载文件</el-button>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -284,10 +518,25 @@ export default {
   data() {
     return {
       loading: false,
+      errorMessage: null, // 错误信息
       imageTab: 'application', // 影像信息当前显示的标签
-      currentStatus: '待初审', // 当前审核状态
+      recordId: null, // 预警记录ID
       showReviewForm: false,
-      uploadUrl: '/api/upload', // 上传文件的接口地址
+      reviewFormType: 'initial', // initial, hospital, final
+      screenshotDialogVisible: false, // 截图对话框显示状态
+      screenshotUrl: null, // 截图URL
+      screenshotLoading: false, // 截图加载状态
+      // 申诉材料预览相关
+      materialsDialogVisible: false, // 申诉材料对话框显示状态
+      materialsFileUrl: '', // 申诉材料文件URL
+      materialsFileLoading: false, // 申诉材料加载状态
+      materialsFileError: null, // 申诉材料错误信息
+      materialsFileName: '', // 申诉材料文件名
+      materialsFileType: '', // 申诉材料文件类型
+      excelData: null, // Excel 文件解析后的数据
+      excelSheets: [], // Excel 工作表列表
+      currentSheetIndex: '0', // 当前显示的工作表索引
+      txtContent: '', // Txt 文件内容
       recordData: {
         taskId: null,
         taskName: '',
@@ -313,40 +562,54 @@ export default {
       applicationImages: [],
       reportImages: [],
       dicomImages: [],
+      // 审核流程数据（从后端获取）
       reviewProcess: {
         firstReview: {
-          status: 'completed', // pending, completed
-          result: '明确违规',
-          opinion: '经查实影像记录存在异常',
-          time: '2025-11-05 11:00:00'
+          reviewer: null,
+          time: null,
+          opinion: null,
+          result: null
         },
         hospitalReview: {
-          status: 'completed',
-          result: '没有违规',
-          appealReason: '患者张三影像数据已补传',
-          materials: ['影像截图', '补充说明材料'],
-          time: '2025-11-06 11:00:00'
+          reviewer: null,
+          time: null,
+          result: null,
+          appealReason: null,
+          appealMaterials: null
         },
         finalReview: {
-          status: 'pending',
-          result: '',
-          opinion: '',
-          time: ''
+          reviewer: null,
+          time: null,
+          opinion: null,
+          result: null
         }
       },
       reviewForm: {
         result: '',
         opinion: '',
         appealReason: '',
-        fileList: []
+        fileList: [],
+        screenshotFile: null,
+        supplementaryFile: null
       }
     }
   },
   computed: {
     // 预警信息表格数据（只展示固定字段）
     warningInfoData() {
+      // 确保 recordData 是对象
       if (!this.recordData || typeof this.recordData !== 'object') {
-        return []
+        console.warn('warningInfoData: recordData 不是有效对象', this.recordData)
+        // 即使数据为空，也返回字段列表，显示为 '-'
+        return [
+          { label: '任务ID', value: '-' },
+          { label: '任务名称', value: '-' },
+          { label: '模型名称', value: '-' },
+          { label: '规则编号', value: '-' },
+          { label: '规则名称', value: '-' },
+          { label: '预警时间', value: '-' },
+          { label: '预警原因', value: '-' }
+        ]
       }
       
       // 只展示这些固定字段，按顺序
@@ -420,8 +683,21 @@ export default {
     },
     // 诊疗信息表格数据（只展示固定字段）
     treatmentInfoData() {
+      // 确保 treatmentData 是对象
       if (!this.treatmentData || typeof this.treatmentData !== 'object') {
-        return []
+        console.warn('treatmentInfoData: treatmentData 不是有效对象', this.treatmentData)
+        // 即使数据为空，也返回字段列表，显示为 '-'
+        return [
+          { label: '医院编码', value: '-' },
+          { label: '医院名称', value: '-' },
+          { label: '医院等级', value: '-' },
+          { label: '患者姓名', value: '-' },
+          { label: '患者身份证号码', value: '-' },
+          { label: '就诊ID', value: '-' },
+          { label: '就诊科室', value: '-' },
+          { label: '就诊类型', value: '-' },
+          { label: '结算ID', value: '-' }
+        ]
       }
       
       // 只展示这些固定字段，按顺序
@@ -496,6 +772,142 @@ export default {
       }
       
       return result
+    },
+    // 判断是否显示初审卡片
+    showFirstReview() {
+      return !!this.reviewProcess.firstReview.time
+    },
+    // 判断是否显示医院复核卡片
+    showHospitalReview() {
+      // 如果已复核，显示
+      if (this.reviewProcess.hospitalReview.time) {
+        return true
+      }
+      // 如果初审结果是"明确违规"或"疑似违规"，且已初审，则可以显示（待复核状态）
+      const firstReviewResult = this.reviewProcess.firstReview.result
+      if (this.showFirstReview && 
+          (firstReviewResult === '明确违规' || firstReviewResult === '疑似违规')) {
+        return true
+      }
+      return false
+    },
+    // 判断是否显示终审卡片
+    showFinalReview() {
+      // 如果已终审，显示
+      if (this.reviewProcess.finalReview.time) {
+        return true
+      }
+      // 如果初审结果是"明确违规"或"疑似违规"，且已复核，则可以显示（待终审状态）
+      const firstReviewResult = this.reviewProcess.firstReview.result
+      if (this.showFirstReview && 
+          (firstReviewResult === '明确违规' || firstReviewResult === '疑似违规') &&
+          this.reviewProcess.hospitalReview.time) {
+        return true
+      }
+      return false
+    },
+    // 判断当前用户是否可以初审
+    canInitialReview() {
+      const role = this.$store.getters.role
+      console.log('当前用户角色:', role)
+      // 只有医保管理员可以初审（支持多种可能的角色名称格式）
+      const canReview = role === 'Medical Insurance Administrator' || 
+                        role === 'System Administrator' ||
+                        role === 'medical_admin' ||
+                        role === 'Medical Insurance Admin' ||
+                        role === '医保管理员'
+      console.log('是否可以初审:', canReview)
+      return canReview
+    },
+    // 判断当前用户是否可以医院复核
+    canHospitalReview() {
+      const role = this.$store.getters.role
+      // 只有医院管理员可以复核
+      return role === 'Hospital Administrator'
+    },
+    // 判断当前用户是否可以终审
+    canFinalReview() {
+      const role = this.$store.getters.role
+      // 只有医保管理员可以终审（支持多种可能的角色名称格式）
+      return role === 'Medical Insurance Administrator' || 
+             role === 'System Administrator' ||
+             role === 'medical_admin' ||
+             role === 'Medical Insurance Admin' ||
+             role === '医保管理员'
+    },
+    // 判断是否可以预览申诉材料
+    canPreviewMaterials() {
+      const role = this.$store.getters.role
+      // 只有医保管理员可以预览（在终审前）（支持多种可能的角色名称格式）
+      const isMedicalAdmin = role === 'Medical Insurance Administrator' || 
+                             role === 'System Administrator' ||
+                             role === 'medical_admin' ||
+                             role === 'Medical Insurance Admin' ||
+                             role === '医保管理员'
+      return isMedicalAdmin && 
+             this.showHospitalReview && 
+             !this.showFinalReview
+    },
+    // 判断当前状态是否可以初审
+    canDoInitialReview() {
+      return this.canInitialReview && !this.showFirstReview
+    },
+    // 判断当前状态是否可以医院复核
+    canDoHospitalReview() {
+      // 必须已初审，且初审结果是"明确违规"或"疑似违规"，且未复核
+      const firstReviewResult = this.reviewProcess.firstReview.result
+      return this.canHospitalReview && 
+             this.showFirstReview && 
+             !this.reviewProcess.hospitalReview.time &&
+             (firstReviewResult === '明确违规' || firstReviewResult === '疑似违规')
+    },
+    // 判断当前状态是否可以终审
+    canDoFinalReview() {
+      // 必须已复核，且未终审
+      return this.canFinalReview && 
+             this.reviewProcess.hospitalReview.time && 
+             !this.reviewProcess.finalReview.time
+    },
+    // 判断初审结果是否为"没有违规"（如果是，则流程结束）
+    isFirstReviewNoViolation() {
+      return this.reviewProcess.firstReview.result === '没有违规'
+    },
+    // 判断是否为PDF文件（同时检查文件名和文件类型）
+    isPdfFile() {
+      if (!this.materialsFileName && !this.materialsFileType) return false
+      const fileName = this.materialsFileName ? this.materialsFileName.toLowerCase() : ''
+      const fileType = this.materialsFileType ? this.materialsFileType.toLowerCase() : ''
+      // 检查文件名或文件类型
+      return fileName.endsWith('.pdf') || fileType === 'pdf' || fileType.includes('pdf')
+    },
+    // 判断是否为图片文件
+    isImageFile() {
+      if (!this.materialsFileName) return false
+      const fileName = this.materialsFileName.toLowerCase()
+      const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']
+      return imageExtensions.some(ext => fileName.endsWith(ext))
+    },
+    // 判断是否为Excel文件（同时检查文件名和文件类型）
+    isExcelFile() {
+      if (!this.materialsFileName && !this.materialsFileType) return false
+      const fileName = this.materialsFileName ? this.materialsFileName.toLowerCase() : ''
+      const fileType = this.materialsFileType ? this.materialsFileType.toLowerCase() : ''
+      // 检查文件名或文件类型，或者是否有Excel数据
+      return (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) || 
+             fileType === 'excel' || fileType.includes('excel') || fileType.includes('spreadsheet') ||
+             (this.excelData && this.excelData.length > 0)
+    },
+    // 判断是否为Txt文件
+    isTxtFile() {
+      if (!this.materialsFileName) return false
+      const fileName = this.materialsFileName.toLowerCase()
+      return fileName.endsWith('.txt')
+    },
+    // 当前工作表的数据
+    currentSheetData() {
+      if (!this.excelData || !this.excelData.length) return null
+      const index = parseInt(this.currentSheetIndex) || 0
+      return this.excelData[index] || null
     }
   },
   mounted() {
@@ -504,10 +916,11 @@ export default {
     console.log('WarningRecordView mounted, 路由参数:', this.$route.query)
     console.log('WarningRecordView mounted, recordId:', recordId)
     if (recordId) {
+      this.recordId = recordId
       this.loadRecordData(recordId)
     } else {
-      this.$message.error('缺少记录ID参数')
-      this.goBack()
+      this.errorMessage = '缺少记录ID参数'
+      console.error('缺少记录ID参数')
     }
   },
   methods: {
@@ -515,12 +928,12 @@ export default {
     async loadRecordData(recordId) {
       console.log('开始加载预警详情, recordId:', recordId)
       this.loading = true
+      this.errorMessage = null // 清除之前的错误信息
       
       const accessToken = this.$store.getters.accessToken
       if (!accessToken) {
         console.error('未找到 accessToken')
-        this.$message.error('未登录，请先登录')
-        this.$router.push('/login')
+        this.errorMessage = '未登录，请先登录'
         this.loading = false
         return
       }
@@ -574,7 +987,7 @@ export default {
         } catch (e) {
           console.error('解析预警详情响应失败:', e)
           console.error('响应文本:', text)
-          this.$message.error('获取预警详情失败: 响应格式错误')
+          this.errorMessage = '获取预警详情失败: 响应格式错误'
           this.loading = false
           return
         }
@@ -590,7 +1003,7 @@ export default {
           }
           
           console.error('接口返回错误:', response.status, errorMessage, data)
-          this.$message.error(errorMessage)
+          this.errorMessage = errorMessage
           this.loading = false
           return
         }
@@ -601,7 +1014,7 @@ export default {
         
         if (!detailData) {
           console.error('detailData 为空')
-          this.$message.error('预警详情数据为空')
+          this.errorMessage = '预警详情数据为空'
           this.loading = false
           return
         }
@@ -619,8 +1032,14 @@ export default {
         }
         console.log('warningInfo:', warningInfo)
         // 将解析后的对象存储，用于动态展示
+        // 确保 warningInfo 是对象
+        if (warningInfo && typeof warningInfo === 'object') {
         this.$set(this, 'recordData', warningInfo)
         console.log('解析后的 recordData:', this.recordData)
+        } else {
+          console.warn('warningInfo 不是有效对象，使用空对象')
+          this.$set(this, 'recordData', {})
+        }
         
         // 解析诊疗信息（可能是 JSON 字符串）
         let treatmentInfo = detailData.treatment_info || {}
@@ -635,8 +1054,14 @@ export default {
         }
         console.log('treatmentInfo:', treatmentInfo)
         // 将解析后的对象存储，用于动态展示
+        // 确保 treatmentInfo 是对象
+        if (treatmentInfo && typeof treatmentInfo === 'object') {
         this.$set(this, 'treatmentData', treatmentInfo)
         console.log('解析后的 treatmentData:', this.treatmentData)
+        } else {
+          console.warn('treatmentInfo 不是有效对象，使用空对象')
+          this.$set(this, 'treatmentData', {})
+        }
         
         // 解析图片数据
         const images = detailData.images || {}
@@ -650,14 +1075,46 @@ export default {
           dicomImages: this.dicomImages.length
         })
         
+        // 解析审核流程数据
+        this.$set(this.reviewProcess, 'firstReview', {
+          reviewer: detailData.initial_reviewer || null,
+          time: detailData.initial_review_time || null,
+          opinion: detailData.initial_review_opinion || null,
+          result: this.mapReviewResult(detailData.initial_review_result) || null
+        })
+        
+        this.$set(this.reviewProcess, 'hospitalReview', {
+          reviewer: detailData.hospital_reviewer || null,
+          time: detailData.hospital_review_time || null,
+          result: detailData.hospital_review_result || null,
+          appealReason: detailData.appeal_reason || null,
+          appealMaterials: detailData.appeal_materials || null
+        })
+        
+        this.$set(this.reviewProcess, 'finalReview', {
+          reviewer: detailData.final_reviewer || null,
+          time: detailData.final_review_time || null,
+          opinion: detailData.final_review_opinion || null,
+          result: this.mapReviewResult(detailData.final_result) || null
+        })
+        
+        console.log('审核流程数据:', this.reviewProcess)
+        
         console.log('预警详情加载成功')
+        this.errorMessage = null // 清除错误信息
         
       } catch (error) {
         console.error('加载预警详情错误:', error)
         console.error('错误堆栈:', error.stack)
-        this.$message.error(error.message || '获取预警详情失败，请稍后重试')
+        this.errorMessage = error.message || '获取预警详情失败，请稍后重试'
       } finally {
         this.loading = false
+      }
+    },
+    // 重试加载
+    retryLoad() {
+      if (this.recordId) {
+        this.loadRecordData(this.recordId)
       }
     },
     // 格式化日期时间
@@ -706,51 +1163,965 @@ export default {
     goBack() {
       this.$router.back()
     },
-    getTimelineColor(status) {
-      return status === 'completed' ? '#67C23A' : '#E4E7ED'
-    },
     getReviewTitle() {
       const titleMap = {
-        '待初审': '初审',
-        '待医院复核': '医院复核',
-        '待终审': '终审'
+        'initial': '初审',
+        'hospital': '医院复核',
+        'final': '终审'
       }
-      return titleMap[this.currentStatus] || '审核'
+      return titleMap[this.reviewFormType] || '审核'
     },
-    submitReview() {
-      if (!this.reviewForm.result) {
-        this.$message.warning('请选择审核结果')
+    // 映射审核结果为中文
+    mapReviewResult(result) {
+      if (!result) return null
+      const resultMap = {
+        'confirmed_violation': '明确违规',
+        'suspected_violation': '疑似违规',
+        'no_violation': '没有违规'
+      }
+      return resultMap[result] || result
+    },
+    // 打开审核表单
+    openReviewForm(type) {
+      this.reviewFormType = type
+      this.reviewForm = {
+        result: '',
+        opinion: '',
+        appealReason: '',
+        fileList: [],
+        screenshotFile: null,
+        supplementaryFile: null
+      }
+      this.showReviewForm = true
+    },
+    // 提交审核
+    async submitReview() {
+      if (!this.recordId) {
+        this.$message.error('缺少记录ID')
         return
       }
       
-      // TODO: 提交审核结果到后端
+      const accessToken = this.$store.getters.accessToken
+      if (!accessToken) {
+        this.$message.error('未登录，请先登录')
+        this.$router.push('/login')
+        return
+      }
+      
+      this.loading = true
+      try {
+        if (this.reviewFormType === 'initial') {
+          // 初审
+      if (!this.reviewForm.result) {
+        this.$message.warning('请选择审核结果')
+            this.loading = false
+        return
+      }
+      
+          await this.submitInitialReview()
+        } else if (this.reviewFormType === 'hospital') {
+          // 医院复核
+          if (!this.reviewForm.result || !this.reviewForm.result.trim()) {
+            this.$message.warning('请填写复核结果')
+            this.loading = false
+            return
+          }
+          
+          await this.submitHospitalReview()
+        } else if (this.reviewFormType === 'final') {
+          // 终审
+          if (!this.reviewForm.result) {
+            this.$message.warning('请选择审核结果')
+            this.loading = false
+            return
+          }
+          
+          await this.submitFinalReview()
+        }
+      } catch (error) {
+        console.error('提交审核错误:', error)
+        this.$message.error(error.message || '提交审核失败，请稍后重试')
+        this.loading = false
+      }
+    },
+    // 提交初审
+    async submitInitialReview() {
+      const accessToken = this.$store.getters.accessToken
+      const role = this.$store.getters.role
+      const user = this.$store.getters
+      
+      console.log('提交初审 - 当前用户信息:', {
+        role: role,
+        username: user.username,
+        institutionType: user.institutionType,
+        accessToken: accessToken ? '存在' : '不存在'
+      })
+      
+      const response = await fetch(`/api/v1/details/${this.recordId}/review/initial/`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          initial_review_opinion: this.reviewForm.opinion || null,
+          initial_review_result: this.reviewForm.result
+        })
+      })
+      
+      console.log('提交初审 - 响应状态:', response.status, response.statusText)
+      
+      // 处理401错误
+      if (response.status === 401) {
+        const { handle401Error } = await import('@/utils/api')
+        const refreshSuccess = await handle401Error(this.$store, this.$router, false)
+        if (refreshSuccess) {
+          const newAccessToken = this.$store.getters.accessToken
+          const retryResponse = await fetch(`/api/v1/details/${this.recordId}/review/initial/`, {
+            method: 'PATCH',
+            headers: {
+              'Authorization': `Bearer ${newAccessToken}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              initial_review_opinion: this.reviewForm.opinion || null,
+              initial_review_result: this.reviewForm.result
+            })
+          })
+          return this.handleReviewResponse(retryResponse)
+        }
+        return
+      }
+      
+      return this.handleReviewResponse(response)
+    },
+    // 提交医院复核
+    async submitHospitalReview() {
+      const accessToken = this.$store.getters.accessToken
+      
+      const formData = new FormData()
+      formData.append('hospital_review_result', this.reviewForm.result)
+      if (this.reviewForm.appealReason) {
+        formData.append('appeal_reason', this.reviewForm.appealReason)
+      }
+      if (this.reviewForm.screenshotFile) {
+        formData.append('image_screenshot', this.reviewForm.screenshotFile)
+      }
+      if (this.reviewForm.supplementaryFile) {
+        formData.append('supplementary_materials', this.reviewForm.supplementaryFile)
+      }
+      
+      const response = await fetch(`/api/v1/hospital/alerts/${this.recordId}/review/`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+          // 不设置 Content-Type，让浏览器自动设置 multipart/form-data
+        },
+        body: formData
+      })
+      
+      // 处理401错误
+      if (response.status === 401) {
+        const { handle401Error } = await import('@/utils/api')
+        const refreshSuccess = await handle401Error(this.$store, this.$router, false)
+        if (refreshSuccess) {
+          const newAccessToken = this.$store.getters.accessToken
+          const retryResponse = await fetch(`/api/v1/hospital/alerts/${this.recordId}/review/`, {
+            method: 'PATCH',
+            headers: {
+              'Authorization': `Bearer ${newAccessToken}`
+            },
+            body: formData
+          })
+          return this.handleReviewResponse(retryResponse)
+        }
+        return
+      }
+      
+      return this.handleReviewResponse(response)
+    },
+    // 提交终审
+    async submitFinalReview() {
+      const accessToken = this.$store.getters.accessToken
+      
+      const response = await fetch(`/api/v1/details/${this.recordId}/review/final/`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          final_review_opinion: this.reviewForm.opinion || null,
+          final_result: this.reviewForm.result
+        })
+      })
+      
+      // 处理401错误
+      if (response.status === 401) {
+        const { handle401Error } = await import('@/utils/api')
+        const refreshSuccess = await handle401Error(this.$store, this.$router, false)
+        if (refreshSuccess) {
+          const newAccessToken = this.$store.getters.accessToken
+          const retryResponse = await fetch(`/api/v1/details/${this.recordId}/review/final/`, {
+            method: 'PATCH',
+            headers: {
+              'Authorization': `Bearer ${newAccessToken}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              final_review_opinion: this.reviewForm.opinion || null,
+              final_result: this.reviewForm.result
+            })
+          })
+          return this.handleReviewResponse(retryResponse)
+        }
+        return
+      }
+      
+      return this.handleReviewResponse(response)
+    },
+    // 处理审核响应
+    async handleReviewResponse(response) {
+      const text = await response.text()
+      let data = null
+      
+      try {
+        data = text ? JSON.parse(text) : null
+      } catch (e) {
+        console.error('解析审核响应失败:', e)
+        if (!response.ok) {
+          throw new Error(`服务器返回了非 JSON 格式的响应 (${response.status})`)
+        }
+      }
+      
+      // 检查响应码
+      if (!response.ok || (data && data.code !== undefined && data.code !== 0)) {
+        let errorMessage = data?.message || `提交审核失败: ${response.status}`
+        
+        console.error('审核响应错误:', {
+          status: response.status,
+          statusText: response.statusText,
+          data: data,
+          errorMessage: errorMessage
+        })
+        
+        if (response.status === 403) {
+          // 403错误，显示更详细的错误信息
+          if (data && data.message) {
+            errorMessage = data.message
+          } else if (data && data.detail) {
+            errorMessage = data.detail
+          } else {
+            errorMessage = '权限不足，无法执行此操作。请确认您的用户角色是否有权限进行此操作。'
+          }
+        } else if (response.status === 404) {
+          errorMessage = '预警详情不存在'
+        } else if (response.status === 400) {
+          errorMessage = data?.message || '数据验证失败，请检查输入'
+        }
+        
+        throw new Error(errorMessage)
+      }
+      
+      // 成功，重新加载数据
       this.$message.success('审核提交成功')
       this.showReviewForm = false
-      
-      // 更新审核流程
-      if (this.currentStatus === '待初审') {
-        this.reviewProcess.firstReview.status = 'completed'
-        this.reviewProcess.firstReview.result = this.reviewForm.result
-        this.reviewProcess.firstReview.opinion = this.reviewForm.opinion
-        this.reviewProcess.firstReview.time = new Date().toLocaleString()
-        this.currentStatus = '待医院复核'
-      } else if (this.currentStatus === '待医院复核') {
-        this.reviewProcess.hospitalReview.status = 'completed'
-        this.reviewProcess.hospitalReview.result = this.reviewForm.result
-        this.reviewProcess.hospitalReview.appealReason = this.reviewForm.appealReason
-        this.reviewProcess.hospitalReview.time = new Date().toLocaleString()
-        this.currentStatus = '待终审'
-      } else if (this.currentStatus === '待终审') {
-        this.reviewProcess.finalReview.status = 'completed'
-        this.reviewProcess.finalReview.result = this.reviewForm.result
-        this.reviewProcess.finalReview.opinion = this.reviewForm.opinion
-        this.reviewProcess.finalReview.time = new Date().toLocaleString()
-        this.currentStatus = '已终审'
-      }
+      this.loading = false
+      await this.loadRecordData(this.recordId)
     },
     handleUploadSuccess(response, file, fileList) {
       this.reviewForm.fileList = fileList
       this.$message.success('文件上传成功')
+    },
+    // 处理截图文件选择
+    handleScreenshotChange(file) {
+      this.reviewForm.screenshotFile = file.raw
+    },
+    // 处理补充材料文件选择
+    handleSupplementaryChange(file) {
+      this.reviewForm.supplementaryFile = file.raw
+    },
+    // 预览申诉材料
+    async previewMaterials() {
+      if (!this.recordId) {
+        this.$message.error('缺少记录ID')
+        return
+      }
+      
+      const accessToken = this.$store.getters.accessToken
+      if (!accessToken) {
+        this.$message.error('未登录，请先登录')
+        this.$router.push('/login')
+        return
+      }
+      
+      // 显示对话框并开始加载
+      this.materialsDialogVisible = true
+      this.materialsFileLoading = true
+      this.materialsFileError = null
+      
+      // 先尝试从已加载的数据中获取原始文件名
+      let initialFileName = `申诉材料_${this.recordId}`
+      if (this.reviewProcess && this.reviewProcess.hospitalReview && this.reviewProcess.hospitalReview.appealMaterials) {
+        const appealMaterials = this.reviewProcess.hospitalReview.appealMaterials
+        console.log('appealMaterials 数据:', appealMaterials, typeof appealMaterials)
+        
+        // 如果appealMaterials是对象，尝试多种可能的字段名
+        if (typeof appealMaterials === 'object' && appealMaterials !== null) {
+          // 尝试多种可能的字段名（按优先级）
+          initialFileName = appealMaterials.original_name || 
+                           appealMaterials.original_filename ||
+                           appealMaterials.filename ||
+                           appealMaterials.name || 
+                           appealMaterials.file_name ||
+                           appealMaterials.fileName ||
+                           initialFileName
+          
+          console.log('从appealMaterials对象获取的文件名:', initialFileName)
+        } else if (typeof appealMaterials === 'string') {
+          // 如果是字符串，可能是文件名或URL
+          // 如果是URL，尝试提取文件名
+          if (appealMaterials.includes('/') || appealMaterials.includes('\\')) {
+            // 可能是路径，提取文件名
+            const pathParts = appealMaterials.split(/[/\\]/)
+            const lastPart = pathParts[pathParts.length - 1]
+            if (lastPart && lastPart.includes('.')) {
+              // 看起来像文件名
+              initialFileName = lastPart
+            } else {
+              initialFileName = appealMaterials
+            }
+          } else {
+            initialFileName = appealMaterials
+          }
+          console.log('从appealMaterials字符串获取的文件名:', initialFileName)
+        }
+      } else {
+        console.log('未找到appealMaterials数据，使用默认文件名')
+      }
+      
+      this.materialsFileName = initialFileName
+      this.materialsFileType = ''
+      
+      try {
+        let response = await fetch(`/api/v1/details/${this.recordId}/preview/materials/`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`
+          }
+        })
+        
+        // 处理401错误
+        if (response.status === 401) {
+          const { handle401Error } = await import('@/utils/api')
+          const refreshSuccess = await handle401Error(this.$store, this.$router, false)
+          if (refreshSuccess) {
+            const newAccessToken = this.$store.getters.accessToken
+            response = await fetch(`/api/v1/details/${this.recordId}/preview/materials/`, {
+              method: 'GET',
+              headers: {
+                'Authorization': `Bearer ${newAccessToken}`
+              }
+            })
+          } else {
+            this.materialsFileLoading = false
+            this.materialsFileError = '登录已过期，请重新登录'
+            return
+          }
+        }
+        
+        if (!response.ok) {
+          this.materialsFileLoading = false
+          if (response.status === 404) {
+            this.materialsFileError = '未找到申诉材料'
+          } else if (response.status === 403) {
+            this.materialsFileError = '权限不足，无法查看申诉材料'
+          } else {
+            this.materialsFileError = `获取申诉材料失败: ${response.status}`
+          }
+          return
+        }
+        
+        // 获取文件类型
+        const contentType = response.headers.get('content-type') || 'application/octet-stream'
+        const blob = await response.blob()
+        
+        // 从Content-Disposition头获取文件名（如果有）
+        const contentDisposition = response.headers.get('content-disposition')
+        if (contentDisposition) {
+          console.log('Content-Disposition:', contentDisposition)
+          let fileName = null
+          
+          // 尝试多种格式匹配
+          // 格式1: filename="filename.ext"
+          // 格式2: filename*=UTF-8''filename.ext (RFC 5987)
+          // 格式3: filename=filename.ext
+          
+          // 先尝试匹配 UTF-8 编码的文件名 (filename*=UTF-8''...)
+          const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i)
+          if (utf8Match && utf8Match[1]) {
+            try {
+              fileName = decodeURIComponent(utf8Match[1])
+            } catch (e) {
+              console.warn('UTF-8文件名解码失败:', e)
+            }
+          }
+          
+          // 如果没有找到UTF-8格式，尝试标准格式
+          if (!fileName) {
+            // 匹配 filename="..." 或 filename='...'
+            const quotedMatch = contentDisposition.match(/filename[^;=\n]*=((['"])([^'"]+)\2)/i)
+            if (quotedMatch && quotedMatch[3]) {
+              fileName = quotedMatch[3]
+            } else {
+              // 匹配 filename=... (无引号)
+              const unquotedMatch = contentDisposition.match(/filename[^;=\n]*=([^;\n]+)/i)
+              if (unquotedMatch && unquotedMatch[1]) {
+                fileName = unquotedMatch[1].trim()
+                // 移除可能的引号
+                fileName = fileName.replace(/^["']|["']$/g, '')
+              }
+            }
+          }
+          
+          // 如果找到了文件名，进行URL解码
+          if (fileName) {
+            try {
+              // 尝试URL解码（处理 %20 等编码）
+              fileName = decodeURIComponent(fileName)
+            } catch (e) {
+              // 如果解码失败，使用原始文件名
+              console.warn('文件名URL解码失败:', e)
+            }
+            // 如果从数据中获取的文件名是默认值，则使用响应头的文件名
+            // 否则优先使用从数据中获取的原始文件名
+            if (this.materialsFileName === `申诉材料_${this.recordId}`) {
+              this.materialsFileName = fileName
+              console.log('从Content-Disposition获取的文件名（覆盖默认值）:', fileName)
+            } else {
+              console.log('保留从数据中获取的原始文件名:', this.materialsFileName, '（响应头文件名:', fileName, '）')
+            }
+          } else {
+            console.warn('无法从Content-Disposition解析文件名，使用已设置的文件名:', this.materialsFileName)
+          }
+        } else {
+          console.warn('响应头中没有Content-Disposition，使用已设置的文件名:', this.materialsFileName)
+        }
+        
+        // 根据Content-Type设置文件类型
+        if (contentType.includes('pdf')) {
+          this.materialsFileType = 'PDF'
+        } else if (contentType.includes('image')) {
+          this.materialsFileType = '图片'
+        } else if (contentType.includes('excel') || contentType.includes('spreadsheet')) {
+          this.materialsFileType = 'Excel'
+        } else if (contentType.includes('text')) {
+          this.materialsFileType = '文本'
+        } else {
+          this.materialsFileType = '未知'
+        }
+        
+        // 判断文件类型并处理（同时检查文件名和Content-Type）
+        const fileName = this.materialsFileName.toLowerCase()
+        const isExcel = fileName.endsWith('.xlsx') || fileName.endsWith('.xls') || 
+                       contentType.includes('excel') || contentType.includes('spreadsheet')
+        const isTxt = fileName.endsWith('.txt') || contentType.includes('text/plain')
+        const isImage = fileName.match(/\.(jpg|jpeg|png|gif|bmp|webp)$/) || 
+                       contentType.startsWith('image/')
+        const isPdf = fileName.endsWith('.pdf') || contentType.includes('application/pdf') || contentType.includes('pdf')
+        
+        console.log('文件类型判断:', {
+          fileName: this.materialsFileName,
+          contentType: contentType,
+          isExcel: isExcel,
+          isTxt: isTxt,
+          isImage: isImage,
+          isPdf: isPdf
+        })
+        
+        if (isExcel) {
+          // Excel 文件：解析并显示
+          await this.parseExcelFile(blob)
+        } else if (isTxt) {
+          // Txt 文件：读取文本内容
+          await this.parseTxtFile(blob)
+        } else if (isImage || isPdf) {
+          // 图片或PDF文件：创建 Blob URL 用于预览
+          const blobUrl = window.URL.createObjectURL(blob)
+          this.materialsFileUrl = blobUrl
+          console.log('创建预览URL:', blobUrl)
+        } else {
+          // 其他文件：创建 Blob URL 用于下载
+          const blobUrl = window.URL.createObjectURL(blob)
+          this.materialsFileUrl = blobUrl
+        }
+        
+        this.materialsFileLoading = false
+        console.log('申诉材料预览已加载')
+      } catch (error) {
+        console.error('预览申诉材料错误:', error)
+        this.materialsFileLoading = false
+        this.materialsFileError = error.message || '无法加载文件，请稍后重试'
+      }
+    },
+    
+    /**
+     * 解析 Excel 文件
+     */
+    async parseExcelFile(blob) {
+      try {
+        // 导入 XLSX 库
+        const XLSX = await import('xlsx')
+        
+        // 检查文件大小（超过 5MB 时给出警告）
+        const fileSizeMB = blob.size / (1024 * 1024)
+        if (fileSizeMB > 5) {
+          this.$message.warning(`文件较大（${fileSizeMB.toFixed(2)}MB），解析可能需要一些时间，请耐心等待...`)
+        }
+        
+        // 将 Blob 转换为 ArrayBuffer
+        const arrayBuffer = await blob.arrayBuffer()
+        
+        // 使用 XLSX 解析 Excel 文件
+        const workbook = XLSX.read(arrayBuffer, { 
+          type: 'array',
+          cellStyles: false,
+          cellDates: false
+        })
+        
+        // 获取所有工作表名称
+        this.excelSheets = workbook.SheetNames.map((name, index) => ({
+          name: name,
+          index: index
+        }))
+        
+        // 解析每个工作表（限制最大行数）
+        const MAX_ROWS = 10 // 最大显示行数
+        const MAX_COLS = 50  // 最大显示列数
+        
+        this.excelData = workbook.SheetNames.map((sheetName) => {
+          const worksheet = workbook.Sheets[sheetName]
+          
+          // 获取工作表的范围
+          const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1')
+          const totalRows = range.e.r + 1
+          const totalCols = range.e.c + 1
+          
+          // 检查是否需要限制
+          const needLimit = totalRows > MAX_ROWS || totalCols > MAX_COLS
+          
+          if (needLimit) {
+            // 如果超过限制，只读取部分数据
+            const limitedRange = {
+              s: { r: 0, c: 0 },
+              e: { 
+                r: Math.min(range.e.r, MAX_ROWS - 1), 
+                c: Math.min(range.e.c, MAX_COLS - 1) 
+              }
+            }
+            worksheet['!ref'] = XLSX.utils.encode_range(limitedRange)
+          }
+          
+          // 将工作表转换为 JSON 格式（带标题行）
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { 
+            header: 1, // 使用数组格式，第一行作为标题
+            defval: '' // 空单元格的默认值
+          })
+          
+          if (jsonData.length === 0) {
+            return {
+              headers: [],
+              rows: [],
+              totalRows: 0,
+              totalCols: 0,
+              limited: false
+            }
+          }
+          
+          // 第一行作为表头
+          const headers = (jsonData[0] || []).slice(0, MAX_COLS)
+          // 其余行作为数据（限制行数）
+          const rows = jsonData.slice(1, MAX_ROWS + 1)
+          
+          return {
+            headers: headers,
+            rows: rows,
+            totalRows: totalRows,
+            totalCols: totalCols,
+            limited: needLimit
+          }
+        })
+        
+        // 默认显示第一个工作表
+        this.currentSheetIndex = '0'
+        
+        // 如果有工作表被限制了，显示提示
+        const hasLimited = this.excelData.some(sheet => sheet.limited)
+        if (hasLimited) {
+          this.$message.warning(`文件较大，为提升性能，仅显示前 ${MAX_ROWS} 行和前 ${MAX_COLS} 列。完整数据请下载文件查看。`)
+        }
+        
+        this.materialsFileLoading = false
+        this.materialsFileError = null
+        console.log('Excel 文件解析成功', {
+          sheets: this.excelSheets.length,
+          data: this.excelData.map(sheet => ({
+            rows: sheet.rows.length,
+            cols: sheet.headers.length,
+            limited: sheet.limited
+          }))
+        })
+      } catch (error) {
+        console.error('解析 Excel 文件失败:', error)
+        this.materialsFileLoading = false
+        this.materialsFileError = '解析 Excel 文件失败：' + error.message + '。文件可能过大或格式不正确，请尝试下载文件查看。'
+      }
+    },
+    
+    /**
+     * 解析 Txt 文件
+     */
+    async parseTxtFile(blob) {
+      try {
+        // 检查文件大小（超过 5MB 时给出警告）
+        const fileSizeMB = blob.size / (1024 * 1024)
+        if (fileSizeMB > 5) {
+          this.$message.warning(`文件较大（${fileSizeMB.toFixed(2)}MB），加载可能需要一些时间，请耐心等待...`)
+        }
+        
+        // 读取文本内容
+        const text = await blob.text()
+        
+        // 如果文件很大，只显示前 10000 个字符
+        const MAX_LENGTH = 10000
+        if (text.length > MAX_LENGTH) {
+          this.txtContent = text.substring(0, MAX_LENGTH) + '\n\n... (文件内容过长，仅显示前 ' + MAX_LENGTH + ' 个字符，完整内容请下载文件查看)'
+          this.$message.info('文件内容较长，仅显示前 ' + MAX_LENGTH + ' 个字符。完整内容请下载文件查看。')
+        } else {
+          this.txtContent = text
+        }
+        
+        // 如果内容为空，显示提示
+        if (!this.txtContent || this.txtContent.trim() === '') {
+          this.txtContent = '(文件为空)'
+        }
+        
+        this.materialsFileLoading = false
+        console.log('Txt 文件解析成功')
+      } catch (error) {
+        console.error('解析 Txt 文件失败:', error)
+        this.materialsFileLoading = false
+        this.materialsFileError = '解析 Txt 文件失败：' + error.message
+      }
+    },
+    
+    /**
+     * 下载申诉材料
+     */
+    async downloadMaterials() {
+      if (!this.recordId) {
+        this.$message.error('缺少记录ID')
+        return
+      }
+      
+      const accessToken = this.$store.getters.accessToken
+      if (!accessToken) {
+        this.$message.error('未登录，请先登录')
+        this.$router.push('/login')
+        return
+      }
+      
+      try {
+        const response = await fetch(`/api/v1/details/${this.recordId}/preview/materials/`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`
+          }
+        })
+        
+        // 处理401错误
+        if (response.status === 401) {
+          const { handle401Error } = await import('@/utils/api')
+          const refreshSuccess = await handle401Error(this.$store, this.$router, false)
+          if (refreshSuccess) {
+            const newAccessToken = this.$store.getters.accessToken
+            const retryResponse = await fetch(`/api/v1/details/${this.recordId}/preview/materials/`, {
+              method: 'GET',
+              headers: {
+                'Authorization': `Bearer ${newAccessToken}`
+              }
+            })
+            if (retryResponse.ok) {
+              const blob = await retryResponse.blob()
+              this.downloadBlob(blob)
+              return
+            }
+          }
+          this.$message.error('登录已过期，请重新登录')
+          return
+        }
+        
+        if (!response.ok) {
+          this.$message.error('下载申诉材料失败')
+          return
+        }
+        
+        const blob = await response.blob()
+        this.downloadBlob(blob)
+      } catch (error) {
+        console.error('下载申诉材料错误:', error)
+        this.$message.error('下载申诉材料失败，请稍后重试')
+      }
+    },
+    
+    /**
+     * 下载 Blob 文件
+     */
+    downloadBlob(blob) {
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = this.materialsFileName || `申诉材料_${this.recordId}`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+      this.$message.success('文件下载成功')
+    },
+    
+    /**
+     * 处理工作表切换
+     */
+    handleSheetChange(tab) {
+      this.currentSheetIndex = tab.name
+    },
+    
+    /**
+     * 处理文件加载成功
+     */
+    handleMaterialsFileLoad() {
+      this.materialsFileLoading = false
+      this.materialsFileError = null
+    },
+    
+    /**
+     * 处理文件加载失败
+     */
+    handleMaterialsFileError() {
+      this.materialsFileLoading = false
+      this.materialsFileError = '文件加载失败，可能后端未提供文件访问接口或文件不存在'
+    },
+    
+    /**
+     * 关闭申诉材料对话框
+     */
+    closeMaterialsDialog() {
+      // 释放 Blob URL
+      if (this.materialsFileUrl && this.materialsFileUrl.startsWith('blob:')) {
+        window.URL.revokeObjectURL(this.materialsFileUrl)
+      }
+      // 清理 Excel 数据
+      this.excelData = null
+      this.excelSheets = []
+      this.currentSheetIndex = '0'
+      // 清理 Txt 数据
+      this.txtContent = ''
+      this.materialsFileUrl = ''
+      this.materialsFileName = ''
+      this.materialsFileType = ''
+      this.materialsFileError = null
+      this.materialsFileLoading = false
+    },
+    // 预览申诉截图
+    async previewScreenshot() {
+      if (!this.recordId) {
+        this.$message.error('缺少记录ID')
+        return
+      }
+      
+      const accessToken = this.$store.getters.accessToken
+      if (!accessToken) {
+        this.$message.error('未登录，请先登录')
+        this.$router.push('/login')
+        return
+      }
+      
+      // 显示加载动画
+      const loadingInstance = this.$loading({
+        lock: true,
+        text: '正在加载申诉截图...',
+        spinner: 'el-icon-loading',
+        background: 'rgba(0, 0, 0, 0.7)'
+      })
+      
+      try {
+        const url = `/api/v1/details/${this.recordId}/preview/screenshot/`
+        console.log('请求申诉截图URL:', url)
+        
+        let response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`
+          }
+        })
+        
+        // 处理401错误
+        if (response.status === 401) {
+          const { handle401Error } = await import('@/utils/api')
+          const refreshSuccess = await handle401Error(this.$store, this.$router, false)
+          if (refreshSuccess) {
+            const newAccessToken = this.$store.getters.accessToken
+            response = await fetch(url, {
+              method: 'GET',
+              headers: {
+                'Authorization': `Bearer ${newAccessToken}`
+              }
+            })
+          } else {
+            loadingInstance.close() // 关闭加载动画
+            return
+          }
+        }
+        
+        // 处理错误响应
+        if (!response.ok) {
+          loadingInstance.close() // 关闭加载动画
+          const contentType = response.headers.get('content-type') || ''
+          
+          if (response.status === 404) {
+            this.$message.warning('未找到申诉截图，可能尚未上传')
+          } else if (response.status === 403) {
+            this.$message.error('权限不足，无法查看申诉截图')
+          } else if (response.status === 401) {
+            this.$message.error('登录已过期，请重新登录')
+            this.$store.commit('clearUser')
+            this.$router.push('/login')
+          } else if (response.status === 503 || response.status === 502 || response.status === 500) {
+            // 服务器错误（503 Service Unavailable, 502 Bad Gateway, 500 Internal Server Error）
+            let errorMessage = '服务器暂时不可用，请稍后重试'
+            if (response.status === 503) {
+              errorMessage = '服务暂时不可用，请稍后重试'
+            } else if (response.status === 502) {
+              errorMessage = '网关错误，请稍后重试'
+            } else if (response.status === 500) {
+              errorMessage = '服务器内部错误，请稍后重试'
+            }
+            
+            // 如果是HTML响应（如ngrok错误页面），不尝试读取内容
+            if (contentType.includes('text/html')) {
+              console.error('获取申诉截图失败: 服务器返回HTML错误页面', response.status)
+              this.$message.error(errorMessage)
+            } else {
+              try {
+                const errorText = await response.text()
+                console.error('获取申诉截图失败:', response.status, errorText.substring(0, 200))
+                this.$message.error(errorMessage)
+              } catch (e) {
+                console.error('获取申诉截图失败: 无法读取错误响应', response.status)
+                this.$message.error(errorMessage)
+              }
+            }
+          } else {
+            // 其他错误
+            try {
+              // 检查是否是HTML响应
+              if (contentType.includes('text/html')) {
+                console.error('获取申诉截图失败: 服务器返回HTML错误页面', response.status)
+                this.$message.error(`获取申诉截图失败: ${response.status}`)
+              } else {
+                const errorText = await response.text()
+                console.error('获取申诉截图失败:', response.status, errorText.substring(0, 200))
+                this.$message.error(`获取申诉截图失败: ${response.status}`)
+              }
+            } catch (e) {
+              console.error('获取申诉截图失败: 无法读取错误响应', response.status, e)
+              this.$message.error(`获取申诉截图失败: ${response.status}`)
+            }
+          }
+          return
+        }
+        
+        // 检查响应类型是否为图片
+        const contentType = response.headers.get('content-type')
+        if (!contentType || !contentType.startsWith('image/')) {
+          loadingInstance.close() // 关闭加载动画
+          console.warn('响应不是图片类型:', contentType)
+          // 如果是HTML，说明可能是错误页面
+          if (contentType && contentType.includes('text/html')) {
+            try {
+              const htmlText = await response.text()
+              console.error('服务器返回HTML而不是图片:', htmlText.substring(0, 200))
+              this.$message.error('服务器返回了错误页面，请稍后重试')
+            } catch (e) {
+              this.$message.error('服务器返回了错误页面，请稍后重试')
+            }
+          } else {
+            this.$message.warning('返回的数据不是图片格式')
+          }
+          return
+        }
+        
+        // 获取图片并显示
+        const blob = await response.blob()
+        const blobUrl = window.URL.createObjectURL(blob)
+        
+        // 关闭加载动画
+        loadingInstance.close()
+        
+        // 在当前页面显示截图对话框
+        this.screenshotDialogVisible = true
+        this.screenshotLoading = true
+        // 先设置 URL，确保图片元素被渲染
+        this.screenshotUrl = blobUrl
+        console.log('设置截图URL:', blobUrl)
+        
+        // 如果图片已经缓存，可能不会触发 load 事件，使用定时器作为备用
+        setTimeout(() => {
+          // 检查图片是否已经加载完成
+          if (this.screenshotLoading && this.screenshotUrl) {
+            const img = document.querySelector('.screenshot-image')
+            if (img && img.complete && img.naturalHeight !== 0) {
+              console.log('图片已加载完成（通过定时器检查）')
+              this.screenshotLoading = false
+            }
+          }
+        }, 100)
+      } catch (error) {
+        // 关闭加载动画
+        loadingInstance.close()
+        console.error('预览申诉截图错误:', error)
+        this.$message.error('获取申诉截图失败，请稍后重试')
+      }
+    },
+    
+    /**
+     * 关闭截图对话框
+     */
+    closeScreenshotDialog() {
+      this.screenshotDialogVisible = false
+      // 释放 Blob URL
+      if (this.screenshotUrl) {
+        window.URL.revokeObjectURL(this.screenshotUrl)
+        this.screenshotUrl = null
+      }
+      this.screenshotLoading = false
+    },
+    
+    /**
+     * 处理截图加载完成
+     */
+    handleScreenshotLoad() {
+      console.log('截图加载完成')
+      this.screenshotLoading = false
+    },
+    
+    /**
+     * 处理截图加载错误
+     */
+    handleScreenshotError(event) {
+      console.error('截图加载失败:', event)
+      this.screenshotLoading = false
+      this.$message.error('图片加载失败')
     },
     viewFile(fileName) {
       this.$message.info('查看文件：' + fileName)
@@ -938,11 +2309,42 @@ export default {
 
 .process-content {
   padding: 10px 0;
+  text-align: left;
+}
+
+/* 卡片内的审核表单 */
+.review-form-in-card {
+  padding: 15px 0;
+  border-top: 1px solid #EBEEF5;
+  margin-top: 15px;
+  text-align: left;
+}
+
+.review-form-in-card .el-form-item {
+  margin-bottom: 15px;
+}
+
+.review-form-in-card .el-form-item:last-child {
+  margin-bottom: 0;
+  margin-top: 10px;
+}
+
+/* 单选按钮组对齐 */
+.review-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.review-radio-group .el-radio {
+  margin-right: 0;
+  line-height: 1.5;
 }
 
 .info-row {
   margin-bottom: 10px;
   line-height: 1.8;
+  text-align: left;
 }
 
 .info-row .label {
@@ -976,6 +2378,12 @@ export default {
   padding-left: 10px;
 }
 
+/* 确保时间戳左对齐 */
+.el-timeline :deep(.el-timeline-item__timestamp) {
+  text-align: left;
+  padding-left: 0;
+}
+
 .el-timeline-item h4 {
   margin: 0 0 15px 0;
   color: #303133;
@@ -983,11 +2391,13 @@ export default {
   font-weight: 600;
   padding-bottom: 10px;
   border-bottom: 1px solid #EBEEF5;
+  text-align: left;
 }
 
 .el-card {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   border-radius: 8px;
+  text-align: left;
 }
 
 .el-card:hover {
@@ -1015,6 +2425,256 @@ export default {
 .warning-info-section /deep/ .el-table th:first-child .cell,
 .treatment-info-section /deep/ .el-table th:first-child .cell {
   font-weight: bold;
+}
+
+/* 截图预览对话框样式 */
+.screenshot-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 2000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.screenshot-dialog-container {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  max-width: 90vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.screenshot-dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #EBEEF5;
+}
+
+.dialog-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.screenshot-dialog-header .close-btn {
+  font-size: 18px;
+  color: #909399;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  line-height: 24px;
+}
+
+.screenshot-dialog-header .close-btn:hover {
+  color: #303133;
+}
+
+.screenshot-dialog-body {
+  padding: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-width: 400px;
+  min-height: 300px;
+  max-width: 90vw;
+  max-height: calc(90vh - 80px);
+  overflow: auto;
+  position: relative;
+}
+
+.screenshot-loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 10;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 40px;
+  border-radius: 8px;
+}
+
+.screenshot-loading .loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #409EFF;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 20px;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.screenshot-loading .loading-text {
+  color: #606266;
+  font-size: 14px;
+}
+
+.screenshot-image {
+  max-width: 100%;
+  max-height: calc(90vh - 120px);
+  object-fit: contain;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  animation: imageFadeIn 0.3s ease;
+}
+
+.screenshot-image.image-loading {
+  opacity: 0;
+  visibility: hidden;
+}
+
+@keyframes imageFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* 申诉材料预览对话框样式 */
+.file-viewer {
+  width: 100%;
+}
+
+.file-info {
+  margin-bottom: 20px;
+}
+
+.file-preview {
+  width: 100%;
+  min-height: 400px;
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 40px;
+  text-align: center;
+}
+
+.loading-container i {
+  font-size: 32px;
+  color: #409EFF;
+  margin-bottom: 16px;
+  animation: rotating 2s linear infinite;
+}
+
+@keyframes rotating {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.error-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 40px;
+  text-align: center;
+}
+
+.error-container i {
+  font-size: 32px;
+  color: #F56C6C;
+  margin-bottom: 16px;
+}
+
+.pdf-viewer {
+  width: 100%;
+  border: 1px solid #e4e7ed;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.image-viewer {
+  width: 100%;
+  text-align: center;
+}
+
+.excel-viewer {
+  width: 100%;
+}
+
+.excel-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.excel-table th,
+.excel-table td {
+  border: 1px solid #dcdfe6;
+  padding: 8px;
+  text-align: left;
+}
+
+.excel-table th {
+  background-color: #f5f7fa;
+  font-weight: 600;
+}
+
+.unsupported-viewer {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 40px;
+  text-align: center;
+}
+
+.unsupported-viewer i {
+  font-size: 48px;
+  color: #909399;
+  margin-bottom: 16px;
 }
 </style>
 
