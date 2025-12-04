@@ -17,6 +17,7 @@ import PermissionBaseView from '../components/PermissionBaseView.vue'
 import ModelBaseView from '../components/ModelBaseView.vue'
 import PersonalInfoView from '../components/PersonalInfoView.vue'
 import store from '../store'
+import { hasRoutePermission } from '../utils/permissions'
 
 Vue.use(VueRouter)
 
@@ -109,8 +110,19 @@ const routes = [
         path: 'personal-info',
         name: 'personal-info',
         component: PersonalInfoView
+      },
+      {
+        path: 'create-user',
+        name: 'create-user',
+        component: Register
       }
     ]
+  },
+  {
+    path: '/register',
+    name: 'register',
+    component: Register,
+    meta: { requiresAuth: true }
   }
 ]
 
@@ -123,6 +135,12 @@ router.beforeEach((to, from, next) => {
   // 初始化用户信息
   store.commit('initUser')
   
+  // 如果访问根路径，直接重定向到登录页（不检查登录状态）
+  if (to.path === '/') {
+    next('/login')
+    return
+  }
+  
   // 定义需要认证的路径前缀
   const protectedPaths = ['/main', '/workspace']
   const isProtectedPath = protectedPaths.some(path => to.path.startsWith(path))
@@ -132,7 +150,40 @@ router.beforeEach((to, from, next) => {
   
   if (requiresAuth) {
     if (store.getters.isLoggedIn) {
-      next()
+      // 检查权限
+      const routeName = to.name
+      const userRole = store.getters.role
+      
+      // workspace 和 personal-info 对所有已登录用户开放，不需要检查权限
+      if (routeName === 'workspace' || routeName === 'personal-info') {
+        next()
+        return
+      }
+      
+      // 如果角色为空，允许访问 workspace（避免循环重定向）
+      if (!userRole) {
+        console.warn('用户角色未设置，允许访问工作台')
+        if (routeName !== 'workspace') {
+          next('/main/workspace')
+        } else {
+          next()
+        }
+        return
+      }
+      
+      // 如果有路由名称，检查权限
+      if (routeName && !hasRoutePermission(userRole, routeName)) {
+        // 没有权限，重定向到工作台（避免循环重定向）
+        console.warn(`用户 ${store.getters.username} (角色: ${userRole}) 没有权限访问 ${routeName}`)
+        // 如果已经在 workspace，直接允许访问，避免循环
+        if (to.path === '/main/workspace' || to.name === 'workspace') {
+          next()
+        } else {
+          next('/main/workspace')
+        }
+      } else {
+        next()
+      }
     } else {
       // 未登录用户尝试访问受保护页面，重定向到登录页
       next({
@@ -140,9 +191,29 @@ router.beforeEach((to, from, next) => {
         query: { redirect: to.fullPath } // 保存原始路径，登录后可以跳转回去
       })
     }
-  } else if ((to.path === '/login' || to.path === '/register') && store.getters.isLoggedIn) {
-    // 已登录用户访问登录/注册页，重定向到主页
-    next('/main')
+  } else if (to.path === '/login' && store.getters.isLoggedIn) {
+    // 已登录用户访问登录页，重定向到主页
+    next('/main/workspace')
+  } else if (to.path === '/register') {
+    // 注册页面需要登录
+    if (store.getters.isLoggedIn) {
+      // 检查是否有创建用户的权限
+      const userRole = store.getters.role
+      if (userRole === 'System Administrator' || 
+          userRole === 'Medical Insurance Administrator' || 
+          userRole === 'Hospital Administrator') {
+        next()
+      } else {
+        // 没有权限，重定向到工作台
+        next('/main/workspace')
+      }
+    } else {
+      // 未登录，重定向到登录页
+      next({
+        path: '/login',
+        query: { redirect: to.fullPath }
+      })
+    }
   } else {
     next()
   }

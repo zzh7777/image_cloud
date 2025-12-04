@@ -6,17 +6,6 @@
       <h2 class="title">数据统计</h2>
     </div>
 
-    <!-- 搜索表单 -->
-    <el-form :inline="true" :model="searchForm" class="search-form">
-      <el-form-item label="任务名称">
-        <el-input v-model="searchForm.taskName" placeholder="请输入任务名称" clearable></el-input>
-      </el-form-item>
-      <el-form-item>
-        <el-button type="primary" icon="el-icon-search">查询</el-button>
-        <el-button icon="el-icon-refresh-left">重置</el-button>
-      </el-form-item>
-    </el-form>
-
     <!-- 数据汇总卡片 -->
     <div class="summary-section">
       <h3 class="section-title">数据汇总</h3>
@@ -78,9 +67,20 @@
       </div>
     </div>
 
+    <!-- 搜索表单 -->
+    <el-form :inline="true" :model="searchForm" class="search-form">
+      <el-form-item label="任务名称">
+        <el-input v-model="searchForm.taskName" placeholder="请输入任务名称" clearable></el-input>
+      </el-form-item>
+      <el-form-item>
+        <el-button type="primary" icon="el-icon-search">查询</el-button>
+        <el-button icon="el-icon-refresh-left">重置</el-button>
+      </el-form-item>
+    </el-form>
+
     <!-- 数据表格 -->
     <div class="table-wrapper">
-      <el-table :data="tableData" style="width: 100%; min-width: 1200px;" border size="small">
+      <el-table :data="tableData" style="width: 100%; min-width: 1200px;" border>
         <el-table-column prop="taskName" label="任务名称" min-width="180"></el-table-column>
         <el-table-column prop="hospitalName" label="医院名称" min-width="150"></el-table-column>
         <el-table-column prop="totalWarnings" label="预警总数" min-width="120" align="center"></el-table-column>
@@ -287,7 +287,8 @@ export default {
   background-color: #fff;
   padding: 20px;
   border-radius: 4px;
-  margin-bottom: 20px;
+  margin-bottom: 0;
+  margin-top: 0;
 }
 
 /* 数据汇总区域 */
@@ -352,9 +353,10 @@ export default {
 .table-wrapper {
   overflow-x: auto;
   background-color: #fff;
-  padding: 20px;
+  padding: 10px;
   border-radius: 8px;
-  margin-bottom: 20px;
+  margin-top: 5px;
+  margin-bottom: 5px;
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
 }
 
@@ -371,6 +373,7 @@ export default {
 .table-wrapper .el-table td,
 .table-wrapper .el-table th {
   padding: 12px 0;
+  font-size: 14px;
 }
 
 .pagination {

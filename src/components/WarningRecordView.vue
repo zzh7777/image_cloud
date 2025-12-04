@@ -7,97 +7,180 @@
       <el-button type="text" icon="el-icon-arrow-left" @click="goBack" class="back-btn">返回</el-button>
     </div>
 
-    <!-- 基本信息区域 -->
-    <div class="info-section">
-      <h3 class="section-title">基本信息</h3>
-      
-      <!-- 任务信息 -->
-      <div class="info-group">
-        <div class="group-title">任务信息</div>
-        <el-descriptions :column="2" border size="small">
-          <el-descriptions-item label="任务ID">{{ recordData.taskId }}</el-descriptions-item>
-          <el-descriptions-item label="任务名称">{{ recordData.taskName }}</el-descriptions-item>
-          <el-descriptions-item label="模型名称">{{ recordData.modelName }}</el-descriptions-item>
-          <el-descriptions-item label="规则编号">{{ recordData.ruleCode }}</el-descriptions-item>
-          <el-descriptions-item label="规则名称" :span="2">{{ recordData.ruleName }}</el-descriptions-item>
-          <el-descriptions-item label="预警原因" :span="2">{{ recordData.warningReason }}</el-descriptions-item>
-          <el-descriptions-item label="补充信息" :span="2">{{ recordData.supplement }}</el-descriptions-item>
-        </el-descriptions>
-      </div>
-      
-      <!-- 医院信息 -->
-      <div class="info-group">
-        <div class="group-title">医院信息</div>
-        <el-descriptions :column="2" border size="small">
-          <el-descriptions-item label="医院H码">{{ recordData.hospitalCode }}</el-descriptions-item>
-          <el-descriptions-item label="医院名称">{{ recordData.hospitalName }}</el-descriptions-item>
-          <el-descriptions-item label="医院等级">{{ recordData.hospitalLevel }}</el-descriptions-item>
-        </el-descriptions>
-      </div>
-      
-      <!-- 患者信息 -->
-      <div class="info-group">
-        <div class="group-title">患者信息</div>
-        <el-descriptions :column="2" border size="small">
-          <el-descriptions-item label="患者姓名">{{ recordData.patientName }}</el-descriptions-item>
-          <el-descriptions-item label="患者身份证">{{ recordData.idCard }}</el-descriptions-item>
-          <el-descriptions-item label="就诊ID">{{ recordData.visitId }}</el-descriptions-item>
-          <el-descriptions-item label="就诊类型">{{ recordData.visitType }}</el-descriptions-item>
-          <el-descriptions-item label="就诊科室">{{ recordData.department }}</el-descriptions-item>
-          <el-descriptions-item label="结算ID">{{ recordData.settlementId }}</el-descriptions-item>
-        </el-descriptions>
-      </div>
-    </div>
+    <!-- 主要内容区域：左右分栏布局 -->
+    <div class="main-content" v-loading="loading" element-loading-text="加载中...">
+      <!-- 左侧内容区域 -->
+      <div class="left-content">
+        <!-- 1. 预警信息 -->
+        <div class="warning-info-section">
+          <h3 class="section-title">预警信息</h3>
+          <el-table :data="warningInfoData" border style="width: 100%">
+            <el-table-column prop="label" label="字段" width="150"></el-table-column>
+            <el-table-column prop="value" label="内容" show-overflow-tooltip></el-table-column>
+          </el-table>
+        </div>
 
-    <!-- 影像信息区域 -->
-    <div class="image-section">
-      <h3 class="section-title">影像信息</h3>
-      <el-tabs v-model="activeTab">
-        <el-tab-pane label="申请信息" name="application">
-          <el-descriptions :column="2" border size="small">
-            <el-descriptions-item label="申请单号">{{ imageData.application.orderNo }}</el-descriptions-item>
-            <el-descriptions-item label="申请时间">{{ imageData.application.applyTime }}</el-descriptions-item>
-            <el-descriptions-item label="申请医生">{{ imageData.application.doctor }}</el-descriptions-item>
-            <el-descriptions-item label="申请科室">{{ imageData.application.department }}</el-descriptions-item>
-            <el-descriptions-item label="检查项目" :span="2">{{ imageData.application.examItem }}</el-descriptions-item>
-            <el-descriptions-item label="临床诊断" :span="2">{{ imageData.application.diagnosis }}</el-descriptions-item>
-            <el-descriptions-item label="检查目的" :span="2">{{ imageData.application.purpose }}</el-descriptions-item>
-          </el-descriptions>
-        </el-tab-pane>
-        
-        <el-tab-pane label="报告信息" name="report">
-          <el-descriptions :column="2" border size="small">
-            <el-descriptions-item label="报告单号">{{ imageData.report.reportNo }}</el-descriptions-item>
-            <el-descriptions-item label="报告时间">{{ imageData.report.reportTime }}</el-descriptions-item>
-            <el-descriptions-item label="报告医生">{{ imageData.report.doctor }}</el-descriptions-item>
-            <el-descriptions-item label="审核医生">{{ imageData.report.reviewer }}</el-descriptions-item>
-            <el-descriptions-item label="检查所见" :span="2">{{ imageData.report.findings }}</el-descriptions-item>
-            <el-descriptions-item label="诊断意见" :span="2">{{ imageData.report.diagnosis }}</el-descriptions-item>
-          </el-descriptions>
-        </el-tab-pane>
-        
-        <el-tab-pane label="影像信息" name="image">
-          <el-descriptions :column="2" border size="small">
-            <el-descriptions-item label="检查号">{{ imageData.image.examNo }}</el-descriptions-item>
-            <el-descriptions-item label="检查时间">{{ imageData.image.examTime }}</el-descriptions-item>
-            <el-descriptions-item label="设备名称">{{ imageData.image.deviceName }}</el-descriptions-item>
-            <el-descriptions-item label="设备型号">{{ imageData.image.deviceModel }}</el-descriptions-item>
-            <el-descriptions-item label="检查部位">{{ imageData.image.bodyPart }}</el-descriptions-item>
-            <el-descriptions-item label="检查技师">{{ imageData.image.technician }}</el-descriptions-item>
-            <el-descriptions-item label="序列数">{{ imageData.image.seriesCount }}</el-descriptions-item>
-            <el-descriptions-item label="图像数">{{ imageData.image.imageCount }}</el-descriptions-item>
-            <el-descriptions-item label="SOP Instance UID" :span="2">{{ imageData.image.sopInstanceUID }}</el-descriptions-item>
-          </el-descriptions>
-        </el-tab-pane>
-      </el-tabs>
-    </div>
+        <!-- 2. 诊疗信息 -->
+        <div class="treatment-info-section">
+          <h3 class="section-title">诊疗信息</h3>
+          <el-table :data="treatmentInfoData" border style="width: 100%">
+            <el-table-column prop="label" label="字段" width="150"></el-table-column>
+            <el-table-column prop="value" label="内容" show-overflow-tooltip></el-table-column>
+          </el-table>
+        </div>
 
-    <!-- 审核流程区域 -->
-    <div class="review-process">
-      <h3 class="section-title">审核流程</h3>
-      
-      <!-- 流程时间线 -->
-      <el-timeline>
+        <!-- 3. 影像信息 -->
+        <div class="image-section">
+          <h3 class="section-title">影像信息</h3>
+          <div class="image-buttons">
+            <el-button 
+              :type="imageTab === 'application' ? 'primary' : 'default'" 
+              @click="imageTab = 'application'"
+            >
+              申请信息
+            </el-button>
+            <el-button 
+              :type="imageTab === 'report' ? 'primary' : 'default'" 
+              @click="imageTab = 'report'"
+            >
+              报告信息
+            </el-button>
+            <el-button 
+              :type="imageTab === 'image' ? 'primary' : 'default'" 
+              @click="imageTab = 'image'"
+            >
+              影像信息
+            </el-button>
+          </div>
+          <div class="image-content">
+            <!-- 申请信息图片 -->
+            <div v-if="imageTab === 'application'" class="image-wrapper">
+              <div v-if="applicationImages.length === 0" class="image-placeholder">暂无图片</div>
+              <div v-else class="image-gallery">
+                <img 
+                  v-for="(image, index) in applicationImages" 
+                  :key="index"
+                  :src="image" 
+                  alt="申请信息" 
+                  @error="handleImageError"
+                  class="gallery-image"
+                />
+              </div>
+            </div>
+            
+            <!-- 报告信息图片 -->
+            <div v-if="imageTab === 'report'" class="image-wrapper">
+              <div v-if="reportImages.length === 0" class="image-placeholder">暂无图片</div>
+              <div v-else class="image-gallery">
+                <img 
+                  v-for="(image, index) in reportImages" 
+                  :key="index"
+                  :src="image" 
+                  alt="报告信息" 
+                  @error="handleImageError"
+                  class="gallery-image"
+                />
+              </div>
+            </div>
+            
+            <!-- 影像信息图片 -->
+            <div v-if="imageTab === 'image'" class="image-wrapper">
+              <div v-if="dicomImages.length === 0" class="image-placeholder">暂无图片</div>
+              <div v-else class="image-gallery">
+                <img 
+                  v-for="(image, index) in dicomImages" 
+                  :key="index"
+                  :src="image" 
+                  alt="影像信息" 
+                  @error="handleImageError"
+                  class="gallery-image"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 审核操作区域 -->
+        <div v-if="showReviewForm" class="review-action">
+          <h3 class="section-title">{{ getReviewTitle() }}</h3>
+          <el-form :model="reviewForm" label-width="100px" size="small">
+            <!-- 初审表单 -->
+            <div v-if="currentStatus === '待初审'">
+              <el-form-item label="初审结果">
+                <el-radio-group v-model="reviewForm.result">
+                  <el-radio label="明确违规">明确违规</el-radio>
+                  <el-radio label="没有违规">没有违规</el-radio>
+                </el-radio-group>
+              </el-form-item>
+              <el-form-item label="初审意见">
+                <el-input 
+                  v-model="reviewForm.opinion" 
+                  type="textarea" 
+                  :rows="4"
+                  placeholder="请输入初审意见">
+                </el-input>
+              </el-form-item>
+            </div>
+            
+            <!-- 医院复核表单 -->
+            <div v-if="currentStatus === '待医院复核'">
+              <el-form-item label="复核结果">
+                <el-radio-group v-model="reviewForm.result">
+                  <el-radio label="没有违规">没有违规</el-radio>
+                  <el-radio label="确认违规">确认违规</el-radio>
+                </el-radio-group>
+              </el-form-item>
+              <el-form-item label="申诉理由">
+                <el-input 
+                  v-model="reviewForm.appealReason" 
+                  type="textarea" 
+                  :rows="4"
+                  placeholder="请输入申诉理由">
+                </el-input>
+              </el-form-item>
+              <el-form-item label="申诉材料">
+                <el-upload
+                  :action="uploadUrl"
+                  :on-success="handleUploadSuccess"
+                  :file-list="reviewForm.fileList">
+                  <el-button size="small" type="primary">上传文件+</el-button>
+                </el-upload>
+              </el-form-item>
+            </div>
+            
+            <!-- 终审表单 -->
+            <div v-if="currentStatus === '待终审'">
+              <el-form-item label="终审结果">
+                <el-radio-group v-model="reviewForm.result">
+                  <el-radio label="明确违规">明确违规</el-radio>
+                  <el-radio label="没有违规">没有违规</el-radio>
+                </el-radio-group>
+              </el-form-item>
+              <el-form-item label="终审意见">
+                <el-input 
+                  v-model="reviewForm.opinion" 
+                  type="textarea" 
+                  :rows="4"
+                  placeholder="请输入终审意见">
+                </el-input>
+              </el-form-item>
+            </div>
+            
+            <el-form-item>
+              <el-button type="primary" @click="submitReview">确定</el-button>
+              <el-button @click="showReviewForm = false">取消</el-button>
+            </el-form-item>
+          </el-form>
+        </div>
+      </div>
+
+      <!-- 右侧内容区域：审核流程 -->
+      <div class="right-content">
+        <div class="review-process">
+          <h3 class="section-title">审核流程</h3>
+          
+          <!-- 流程时间线 -->
+          <el-timeline>
         <!-- 初审 -->
         <el-timeline-item
           :timestamp="reviewProcess.firstReview.time"
@@ -189,84 +272,8 @@
           </el-card>
         </el-timeline-item>
       </el-timeline>
-    </div>
-
-    <!-- 审核操作区域 -->
-    <div v-if="showReviewForm" class="review-action">
-      <h3 class="section-title">{{ getReviewTitle() }}</h3>
-      <el-form :model="reviewForm" label-width="100px" size="small">
-        <!-- 初审表单 -->
-        <div v-if="currentStatus === '待初审'">
-          <el-form-item label="初审结果">
-            <el-radio-group v-model="reviewForm.result">
-              <el-radio label="明确违规">明确违规</el-radio>
-              <el-radio label="没有违规">没有违规</el-radio>
-            </el-radio-group>
-          </el-form-item>
-          <el-form-item label="初审意见">
-            <el-input 
-              v-model="reviewForm.opinion" 
-              type="textarea" 
-              :rows="4"
-              placeholder="请输入初审意见">
-            </el-input>
-          </el-form-item>
         </div>
-        
-        <!-- 医院复核表单 -->
-        <div v-if="currentStatus === '待医院复核'">
-          <el-form-item label="复核结果">
-            <el-radio-group v-model="reviewForm.result">
-              <el-radio label="没有违规">没有违规</el-radio>
-              <el-radio label="确认违规">确认违规</el-radio>
-            </el-radio-group>
-          </el-form-item>
-          <el-form-item label="申诉理由">
-            <el-input 
-              v-model="reviewForm.appealReason" 
-              type="textarea" 
-              :rows="4"
-              placeholder="请输入申诉理由">
-            </el-input>
-          </el-form-item>
-          <el-form-item label="申诉材料">
-            <el-upload
-              :action="uploadUrl"
-              :on-success="handleUploadSuccess"
-              :file-list="reviewForm.fileList">
-              <el-button size="small" type="primary">上传文件+</el-button>
-            </el-upload>
-          </el-form-item>
-        </div>
-        
-        <!-- 终审表单 -->
-        <div v-if="currentStatus === '待终审'">
-          <el-form-item label="终审结果">
-            <el-radio-group v-model="reviewForm.result">
-              <el-radio label="明确违规">明确违规</el-radio>
-              <el-radio label="没有违规">没有违规</el-radio>
-            </el-radio-group>
-          </el-form-item>
-          <el-form-item label="终审意见">
-            <el-input 
-              v-model="reviewForm.opinion" 
-              type="textarea" 
-              :rows="4"
-              placeholder="请输入终审意见">
-            </el-input>
-          </el-form-item>
-        </div>
-        
-        <el-form-item>
-          <el-button type="primary" @click="submitReview">确定</el-button>
-          <el-button @click="showReviewForm = false">取消</el-button>
-        </el-form-item>
-      </el-form>
-    </div>
-    
-    <!-- 操作按钮 -->
-    <div v-if="!showReviewForm && currentStatus !== '已终审'" class="action-buttons">
-      <el-button type="primary" @click="startReview">开始审核</el-button>
+      </div>
     </div>
   </div>
 </template>
@@ -276,58 +283,36 @@ export default {
   name: 'WarningRecordView',
   data() {
     return {
-      activeTab: 'application',
+      loading: false,
+      imageTab: 'application', // 影像信息当前显示的标签
       currentStatus: '待初审', // 当前审核状态
       showReviewForm: false,
       uploadUrl: '/api/upload', // 上传文件的接口地址
       recordData: {
-        taskId: 'JG0000000000014',
-        taskName: '虚假检查监测',
-        modelName: '虚假检查监测模型',
-        ruleCode: 'YX0000000000000003',
-        ruleName: '影像DICOM文件重复次数',
-        warningReason: '影像DICOM文件中SOP_INSTANCE_UID字段在患者多次影像检查记录中、在不同患者影像检查记录中重复出现的次数，疑似复制伪造检查记录',
-        supplement: '100000000000708463177-202411221430-000000000-0000000000000-123502004266007916',
-        hospitalCode: 'H000000001',
-        hospitalName: '第一人民医院',
-        hospitalLevel: '三级',
-        patientName: '张**',
-        idCard: '32038219890711****',
-        visitId: '23243893739',
-        department: '骨科',
-        visitType: '门诊',
-        settlementId: '87718182828'
+        taskId: null,
+        taskName: '',
+        modelName: '',
+        ruleCode: '',
+        ruleName: '',
+        warningTime: '',
+        warningReason: '',
+        supplement: ''
       },
-      imageData: {
-        application: {
-          orderNo: 'SQ202411220001',
-          applyTime: '2024-11-22 09:30:00',
-          doctor: '李医生',
-          department: '骨科',
-          examItem: 'CT检查-腰椎',
-          diagnosis: '腰椎间盘突出',
-          purpose: '明确病变部位及程度'
-        },
-        report: {
-          reportNo: 'BG202411220001',
-          reportTime: '2024-11-22 14:30:00',
-          doctor: '王医生',
-          reviewer: '赵医生',
-          findings: '腰椎生理曲度存在，L4-5椎间盘向后突出，硬膜囊受压变窄，双侧神经根受压。',
-          diagnosis: '1. L4-5椎间盘突出；2. 双侧神经根受压'
-        },
-        image: {
-          examNo: 'JC202411220001',
-          examTime: '2024-11-22 10:15:00',
-          deviceName: 'CT扫描仪',
-          deviceModel: 'Siemens SOMATOM Definition',
-          bodyPart: '腰椎',
-          technician: '技师A',
-          seriesCount: '3',
-          imageCount: '120',
-          sopInstanceUID: '1.2.840.113619.2.55.3.604688119.868.1234567890.1'
-        }
+      treatmentData: {
+        hospitalCode: '',
+        hospitalName: '',
+        hospitalLevel: '',
+        patientName: '',
+        patientIdNumber: '',
+        visitId: '',
+        visitDepartment: '',
+        visitType: '',
+        settlementId: ''
       },
+      // 图片数据（Base64数组）
+      applicationImages: [],
+      reportImages: [],
+      dicomImages: [],
       reviewProcess: {
         firstReview: {
           status: 'completed', // pending, completed
@@ -357,17 +342,366 @@ export default {
       }
     }
   },
+  computed: {
+    // 预警信息表格数据（只展示固定字段）
+    warningInfoData() {
+      if (!this.recordData || typeof this.recordData !== 'object') {
+        return []
+      }
+      
+      // 只展示这些固定字段，按顺序
+      // 支持多个可能的字段名（字段名映射）
+      const fields = [
+        { 
+          keys: ['task_id', 'taskId'], 
+          label: '任务ID',
+          fromRoute: 'taskId'
+        },
+        { 
+          keys: ['task_name', 'taskName'], 
+          label: '任务名称',
+          fromRoute: 'taskName'
+        },
+        { 
+          keys: ['model_name', 'modelName'], 
+          label: '模型名称'
+        },
+        { 
+          keys: ['rule_code', 'ruleCode'], 
+          label: '规则编号'
+        },
+        { 
+          keys: ['rule_name', 'ruleName'], 
+          label: '规则名称'
+        },
+        { 
+          keys: ['warning_time', 'warningTime'], 
+          label: '预警时间', 
+          format: 'datetime'
+        },
+        { 
+          keys: ['warning_reason', 'warningReason', 'reason'], 
+          label: '预警原因'
+        }
+      ]
+      
+      const result = []
+      for (const field of fields) {
+        let value = null
+        
+        // 先从路由参数获取（如果指定了 fromRoute）
+        if (field.fromRoute && this.$route.query[field.fromRoute]) {
+          value = this.$route.query[field.fromRoute]
+        } else {
+          // 从 recordData 中查找，支持多个可能的字段名
+          for (const key of field.keys) {
+            if (this.recordData[key] !== undefined && this.recordData[key] !== null && this.recordData[key] !== '') {
+              value = this.recordData[key]
+              break
+            }
+          }
+        }
+        
+        // 处理值
+        if (value === null || value === undefined || value === '') {
+          value = '-'
+        } else if (field.format === 'datetime') {
+          value = this.formatDateTime(value)
+        } else if (typeof value === 'object') {
+          value = JSON.stringify(value, null, 2)
+        } else {
+          value = String(value)
+        }
+        
+        result.push({ label: field.label, value })
+      }
+      
+      return result
+    },
+    // 诊疗信息表格数据（只展示固定字段）
+    treatmentInfoData() {
+      if (!this.treatmentData || typeof this.treatmentData !== 'object') {
+        return []
+      }
+      
+      // 只展示这些固定字段，按顺序
+      // 支持多个可能的字段名（字段名映射）
+      const fields = [
+        { 
+          keys: ['hospital_code', 'hospitalCode'], 
+          label: '医院编码'
+        },
+        { 
+          keys: ['hospital_name', 'hospitalName'], 
+          label: '医院名称'
+        },
+        { 
+          keys: ['hospital_level', 'hospitalLevel'], 
+          label: '医院等级'
+        },
+        { 
+          keys: ['patient_name', 'patientName'], 
+          label: '患者姓名', 
+          format: 'desensitizeName'
+        },
+        { 
+          keys: ['patient_id_number', 'patientIdNumber', 'patient_id'], 
+          label: '患者身份证号码', 
+          format: 'desensitizeIdCard'
+        },
+        { 
+          keys: ['visit_id', 'visitId'], 
+          label: '就诊ID'
+        },
+        { 
+          keys: ['visit_department', 'visitDepartment'], 
+          label: '就诊科室'
+        },
+        { 
+          keys: ['visit_type', 'visitType'], 
+          label: '就诊类型'
+        },
+        { 
+          keys: ['settlement_id', 'settlementId'], 
+          label: '结算ID'
+        }
+      ]
+      
+      const result = []
+      for (const field of fields) {
+        let value = null
+        
+        // 从 treatmentData 中查找，支持多个可能的字段名
+        for (const key of field.keys) {
+          if (this.treatmentData[key] !== undefined && this.treatmentData[key] !== null && this.treatmentData[key] !== '') {
+            value = this.treatmentData[key]
+            break
+          }
+        }
+        
+        // 处理值
+        if (value === null || value === undefined || value === '') {
+          value = '-'
+        } else if (field.format === 'desensitizeName') {
+          value = this.desensitizeName(value)
+        } else if (field.format === 'desensitizeIdCard') {
+          value = this.desensitizeIdCard(value)
+        } else if (typeof value === 'object') {
+          value = JSON.stringify(value, null, 2)
+        } else {
+          value = String(value)
+        }
+        
+        result.push({ label: field.label, value })
+      }
+      
+      return result
+    }
+  },
   mounted() {
     // 从路由参数获取记录ID并加载数据
-    const recordId = this.$route.query.recordId
+    const recordId = this.$route.query.id || this.$route.query.recordId
+    console.log('WarningRecordView mounted, 路由参数:', this.$route.query)
+    console.log('WarningRecordView mounted, recordId:', recordId)
     if (recordId) {
       this.loadRecordData(recordId)
+    } else {
+      this.$message.error('缺少记录ID参数')
+      this.goBack()
     }
   },
   methods: {
-    loadRecordData(recordId) {
-      // TODO: 从后端加载具体记录数据
-      console.log('加载记录ID:', recordId)
+    // 从后端加载预警记录详情
+    async loadRecordData(recordId) {
+      console.log('开始加载预警详情, recordId:', recordId)
+      this.loading = true
+      
+      const accessToken = this.$store.getters.accessToken
+      if (!accessToken) {
+        console.error('未找到 accessToken')
+        this.$message.error('未登录，请先登录')
+        this.$router.push('/login')
+        this.loading = false
+        return
+      }
+      
+      try {
+        const url = `/api/v1/details/${recordId}/`
+        console.log('请求URL:', url)
+        
+        let response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          }
+        })
+        
+        console.log('响应状态:', response.status, response.statusText)
+        
+        // 如果是401错误，尝试刷新token
+        if (response.status === 401) {
+          console.log('收到401错误，尝试刷新token')
+          const { handle401Error } = await import('@/utils/api')
+          const refreshSuccess = await handle401Error(this.$store, this.$router, false)
+          if (refreshSuccess) {
+            const newAccessToken = this.$store.getters.accessToken
+            response = await fetch(url, {
+              method: 'GET',
+              headers: {
+                'Authorization': `Bearer ${newAccessToken}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+              }
+            })
+            console.log('重试后响应状态:', response.status, response.statusText)
+          } else {
+            this.loading = false
+            return
+          }
+        }
+        
+        const text = await response.text()
+        console.log('响应文本长度:', text.length)
+        console.log('响应文本前500字符:', text.substring(0, 500))
+        
+        let data = null
+        
+        try {
+          data = text ? JSON.parse(text) : null
+          console.log('解析后的数据:', data)
+        } catch (e) {
+          console.error('解析预警详情响应失败:', e)
+          console.error('响应文本:', text)
+          this.$message.error('获取预警详情失败: 响应格式错误')
+          this.loading = false
+          return
+        }
+        
+        // 检查响应码
+        if (!response.ok || (data && data.code !== undefined && data.code !== 0)) {
+          let errorMessage = data?.message || `获取预警详情失败: ${response.status}`
+          
+          if (response.status === 404) {
+            errorMessage = '预警详情不存在'
+          } else if (response.status === 403) {
+            errorMessage = '权限不足，无法查看预警详情'
+          }
+          
+          console.error('接口返回错误:', response.status, errorMessage, data)
+          this.$message.error(errorMessage)
+          this.loading = false
+          return
+        }
+        
+        // 处理统一响应格式
+        const detailData = data && data.code === 0 ? data.data : data
+        console.log('detailData:', detailData)
+        
+        if (!detailData) {
+          console.error('detailData 为空')
+          this.$message.error('预警详情数据为空')
+          this.loading = false
+          return
+        }
+        
+        // 解析预警信息（可能是 JSON 字符串）
+        let warningInfo = detailData.warning_info || {}
+        if (typeof warningInfo === 'string') {
+          try {
+            warningInfo = JSON.parse(warningInfo)
+            console.log('warning_info 解析为 JSON:', warningInfo)
+          } catch (e) {
+            console.error('解析 warning_info JSON 失败:', e)
+            warningInfo = {}
+          }
+        }
+        console.log('warningInfo:', warningInfo)
+        // 将解析后的对象存储，用于动态展示
+        this.$set(this, 'recordData', warningInfo)
+        console.log('解析后的 recordData:', this.recordData)
+        
+        // 解析诊疗信息（可能是 JSON 字符串）
+        let treatmentInfo = detailData.treatment_info || {}
+        if (typeof treatmentInfo === 'string') {
+          try {
+            treatmentInfo = JSON.parse(treatmentInfo)
+            console.log('treatment_info 解析为 JSON:', treatmentInfo)
+          } catch (e) {
+            console.error('解析 treatment_info JSON 失败:', e)
+            treatmentInfo = {}
+          }
+        }
+        console.log('treatmentInfo:', treatmentInfo)
+        // 将解析后的对象存储，用于动态展示
+        this.$set(this, 'treatmentData', treatmentInfo)
+        console.log('解析后的 treatmentData:', this.treatmentData)
+        
+        // 解析图片数据
+        const images = detailData.images || {}
+        console.log('images:', images)
+        this.$set(this, 'applicationImages', images.application_info_images || [])
+        this.$set(this, 'reportImages', images.report_info_images || [])
+        this.$set(this, 'dicomImages', images.dicom_images || [])
+        console.log('图片数据:', {
+          applicationImages: this.applicationImages.length,
+          reportImages: this.reportImages.length,
+          dicomImages: this.dicomImages.length
+        })
+        
+        console.log('预警详情加载成功')
+        
+      } catch (error) {
+        console.error('加载预警详情错误:', error)
+        console.error('错误堆栈:', error.stack)
+        this.$message.error(error.message || '获取预警详情失败，请稍后重试')
+      } finally {
+        this.loading = false
+      }
+    },
+    // 格式化日期时间
+    formatDateTime(dateTimeString) {
+      if (!dateTimeString) return '-'
+      try {
+        const date = new Date(dateTimeString)
+        const year = date.getFullYear()
+        const month = String(date.getMonth() + 1).padStart(2, '0')
+        const day = String(date.getDate()).padStart(2, '0')
+        const hours = String(date.getHours()).padStart(2, '0')
+        const minutes = String(date.getMinutes()).padStart(2, '0')
+        const seconds = String(date.getSeconds()).padStart(2, '0')
+        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+      } catch (e) {
+        return dateTimeString
+      }
+    },
+    // 格式化补充信息（可能是对象或字符串）
+    formatSupplementInfo(supplement) {
+      if (!supplement) return '-'
+      if (typeof supplement === 'string') {
+        return supplement
+      }
+      if (typeof supplement === 'object') {
+        try {
+          return JSON.stringify(supplement, null, 2)
+        } catch (e) {
+          return String(supplement)
+        }
+      }
+      return String(supplement)
+    },
+    // 姓名脱敏
+    desensitizeName(name) {
+      if (!name) return '-'
+      if (name.length <= 1) return name
+      return name.charAt(0) + '*'.repeat(name.length - 1)
+    },
+    // 身份证脱敏
+    desensitizeIdCard(idCard) {
+      if (!idCard) return '-'
+      if (idCard.length <= 6) return idCard
+      return idCard.substring(0, 6) + '*'.repeat(idCard.length - 10) + idCard.substring(idCard.length - 4)
     },
     goBack() {
       this.$router.back()
@@ -382,15 +716,6 @@ export default {
         '待终审': '终审'
       }
       return titleMap[this.currentStatus] || '审核'
-    },
-    startReview() {
-      this.showReviewForm = true
-      this.reviewForm = {
-        result: '',
-        opinion: '',
-        appealReason: '',
-        fileList: []
-      }
     },
     submitReview() {
       if (!this.reviewForm.result) {
@@ -430,6 +755,11 @@ export default {
     viewFile(fileName) {
       this.$message.info('查看文件：' + fileName)
       // TODO: 实现文件查看功能
+    },
+    handleImageError(event) {
+      // 图片加载失败时的处理
+      console.error('图片加载失败:', event.target.src.substring(0, 50))
+      event.target.style.display = 'none'
     }
   }
 }
@@ -488,8 +818,27 @@ export default {
   border-bottom: 2px solid #E4E7ED;
 }
 
-/* 基本信息区域 */
-.info-section {
+/* 主要内容区域：左右分栏布局 */
+.main-content {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+/* 左侧内容区域 */
+.left-content {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 右侧内容区域：审核流程 */
+.right-content {
+  width: 400px;
+  flex-shrink: 0;
+}
+
+/* 预警信息区域 */
+.warning-info-section {
   background-color: #fff;
   padding: 25px;
   border-radius: 8px;
@@ -497,21 +846,13 @@ export default {
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
 }
 
-.info-group {
-  margin-bottom: 25px;
-}
-
-.info-group:last-child {
-  margin-bottom: 0;
-}
-
-.group-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #409EFF;
-  margin-bottom: 12px;
-  padding-left: 10px;
-  border-left: 3px solid #409EFF;
+/* 诊疗信息区域 */
+.treatment-info-section {
+  background-color: #fff;
+  padding: 25px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
 }
 
 /* 影像信息区域 */
@@ -523,8 +864,66 @@ export default {
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
 }
 
-.image-section .el-tabs {
+.image-buttons {
+  margin-bottom: 20px;
+  display: flex;
+  gap: 10px;
+}
+
+.image-content {
   margin-top: 10px;
+  overflow: hidden;
+}
+
+.image-wrapper {
+  width: 100%;
+  text-align: center;
+  background-color: #f5f7fa;
+  border-radius: 4px;
+  padding: 20px;
+  min-height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.image-wrapper img {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-sizing: border-box;
+}
+
+.image-placeholder {
+  color: #909399;
+  font-size: 14px;
+  padding: 40px;
+  text-align: center;
+}
+
+.image-gallery {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  align-items: center;
+  width: 100%;
+}
+
+.gallery-image {
+  max-width: 100%;
+  max-height: 600px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-sizing: border-box;
 }
 
 /* 审核流程区域 */
@@ -532,8 +931,9 @@ export default {
   background-color: #fff;
   padding: 25px;
   border-radius: 8px;
-  margin-bottom: 20px;
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 20px;
 }
 
 .process-content {
@@ -570,13 +970,6 @@ export default {
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
 }
 
-.action-buttons {
-  text-align: center;
-  padding: 30px;
-  background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
-}
 
 /* Timeline样式优化 */
 .el-timeline {
@@ -617,6 +1010,11 @@ export default {
 .el-descriptions :deep(.el-descriptions__content) {
   background-color: #fff;
   color: #303133;
+}
+/* 字段列标题加粗 */
+.warning-info-section /deep/ .el-table th:first-child .cell,
+.treatment-info-section /deep/ .el-table th:first-child .cell {
+  font-weight: bold;
 }
 </style>
 

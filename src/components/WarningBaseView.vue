@@ -11,10 +11,10 @@
       <!-- 搜索表单 -->
       <div class="search-form">
         <el-form :inline="true" :model="searchForm" class="demo-form-inline">
-          <el-form-item label="任务ID">
+          <el-form-item label="任务编码">
             <el-input
-              v-model="searchForm.taskId"
-              placeholder="请输入任务ID"
+              v-model="searchForm.taskCode"
+              placeholder="请输入任务编码"
               clearable
             ></el-input>
           </el-form-item>
@@ -36,20 +36,29 @@
     <!-- 预警列表表格 -->
     <div class="table-section">
       <div class="table-wrapper">
-        <el-table :data="warningList" style="width: 100%; min-width: 1400px;" border>
-          <el-table-column prop="taskId" label="任务ID" min-width="180"></el-table-column>
-          <el-table-column prop="taskName" label="任务名称" min-width="160"></el-table-column>
-          <el-table-column prop="completeTime" label="任务完成时间" min-width="180"></el-table-column>
-          <el-table-column prop="totalCount" label="预警总条数" min-width="130" align="center"></el-table-column>
-          <el-table-column prop="pendingFirstReview" label="待初审条数" min-width="130" align="center"></el-table-column>
-          <el-table-column prop="hospitalReview" label="医院复核条数" min-width="140" align="center"></el-table-column>
-          <el-table-column prop="pendingFinalReview" label="待终审条数" min-width="130" align="center"></el-table-column>
-          <el-table-column prop="finalReviewed" label="已终审条数" min-width="130" align="center"></el-table-column>
-          <el-table-column prop="confirmedViolation" label="明确违规条数" min-width="140" align="center"></el-table-column>
-          <el-table-column prop="positiveRate" label="阳性率" min-width="120" align="center">
+        <el-table 
+          :data="warningList" 
+          style="width: 100%; min-width: 1400px;" 
+          border
+          v-loading="loading"
+          element-loading-text="加载中...">
+          <el-table-column prop="task_code" label="任务编码" min-width="180" align="left"></el-table-column>
+          <el-table-column prop="task_name" label="任务名称" min-width="160" align="left"></el-table-column>
+          <el-table-column prop="completion_time" label="任务完成时间" min-width="180" align="left">
             <template slot-scope="scope">
-              <span :style="{ color: getPositiveRateColor(scope.row.positiveRate), fontWeight: 'bold' }">
-                {{ scope.row.positiveRate }}
+              {{ formatDateTime(scope.row.completion_time) }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="total_warning_count" label="预警总条数" min-width="130" align="left"></el-table-column>
+          <el-table-column prop="pending_initial_review_count" label="待初审条数" min-width="130" align="left"></el-table-column>
+          <el-table-column prop="hospital_review_count" label="医院复核条数" min-width="140" align="left"></el-table-column>
+          <el-table-column prop="pending_final_review_count" label="待终审条数" min-width="130" align="left"></el-table-column>
+          <el-table-column prop="final_reviewed_count" label="已终审条数" min-width="130" align="left"></el-table-column>
+          <el-table-column prop="confirmed_violation_count" label="明确违规条数" min-width="140" align="left"></el-table-column>
+          <el-table-column prop="positive_rate" label="阳性率" min-width="120" align="left">
+            <template slot-scope="scope">
+              <span :style="{ color: getPositiveRateColor(scope.row.positive_rate), fontWeight: 'bold' }">
+                {{ formatPositiveRate(scope.row.positive_rate) }}
               </span>
             </template>
           </el-table-column>
@@ -82,28 +91,28 @@
       width="900px"
     >
       <el-descriptions :column="2" border>
-        <el-descriptions-item label="任务ID">{{ viewWarning.taskId }}</el-descriptions-item>
-        <el-descriptions-item label="任务名称">{{ viewWarning.taskName }}</el-descriptions-item>
-        <el-descriptions-item label="任务完成时间">{{ viewWarning.completeTime }}</el-descriptions-item>
-        <el-descriptions-item label="预警总条数">{{ viewWarning.totalCount }}</el-descriptions-item>
+        <el-descriptions-item label="任务编码">{{ viewWarning.task_code }}</el-descriptions-item>
+        <el-descriptions-item label="任务名称">{{ viewWarning.task_name }}</el-descriptions-item>
+        <el-descriptions-item label="任务完成时间">{{ formatDateTime(viewWarning.completion_time) }}</el-descriptions-item>
+        <el-descriptions-item label="预警总条数">{{ viewWarning.total_warning_count }}</el-descriptions-item>
         <el-descriptions-item label="待初审条数">
-          <el-tag type="warning">{{ viewWarning.pendingFirstReview }}</el-tag>
+          <el-tag type="warning">{{ viewWarning.pending_initial_review_count }}</el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="医院复核条数">
-          <el-tag type="info">{{ viewWarning.hospitalReview }}</el-tag>
+          <el-tag type="info">{{ viewWarning.hospital_review_count }}</el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="待终审条数">
-          <el-tag type="warning">{{ viewWarning.pendingFinalReview }}</el-tag>
+          <el-tag type="warning">{{ viewWarning.pending_final_review_count }}</el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="已终审条数">
-          <el-tag type="success">{{ viewWarning.finalReviewed }}</el-tag>
+          <el-tag type="success">{{ viewWarning.final_reviewed_count }}</el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="明确违规条数">
-          <el-tag type="danger">{{ viewWarning.confirmedViolation }}</el-tag>
+          <el-tag type="danger">{{ viewWarning.confirmed_violation_count }}</el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="阳性率">
-          <span :style="{ color: getPositiveRateColor(viewWarning.positiveRate), fontWeight: 'bold' }">
-            {{ viewWarning.positiveRate }}
+          <span :style="{ color: getPositiveRateColor(viewWarning.positive_rate), fontWeight: 'bold' }">
+            {{ formatPositiveRate(viewWarning.positive_rate) }}
           </span>
         </el-descriptions-item>
       </el-descriptions>
@@ -114,23 +123,23 @@
         <div class="stats-cards">
           <div class="stat-card">
             <div class="stat-label">待初审</div>
-            <div class="stat-value warning">{{ viewWarning.pendingFirstReview }}</div>
+            <div class="stat-value warning">{{ viewWarning.pending_initial_review_count }}</div>
           </div>
           <div class="stat-card">
             <div class="stat-label">医院复核</div>
-            <div class="stat-value info">{{ viewWarning.hospitalReview }}</div>
+            <div class="stat-value info">{{ viewWarning.hospital_review_count }}</div>
           </div>
           <div class="stat-card">
             <div class="stat-label">待终审</div>
-            <div class="stat-value warning">{{ viewWarning.pendingFinalReview }}</div>
+            <div class="stat-value warning">{{ viewWarning.pending_final_review_count }}</div>
           </div>
           <div class="stat-card">
             <div class="stat-label">已终审</div>
-            <div class="stat-value success">{{ viewWarning.finalReviewed }}</div>
+            <div class="stat-value success">{{ viewWarning.final_reviewed_count }}</div>
           </div>
           <div class="stat-card">
             <div class="stat-label">明确违规</div>
-            <div class="stat-value danger">{{ viewWarning.confirmedViolation }}</div>
+            <div class="stat-value danger">{{ viewWarning.confirmed_violation_count }}</div>
           </div>
         </div>
       </div>
@@ -148,101 +157,180 @@ export default {
   name: 'WarningBaseView',
   data() {
     return {
+      loading: false,
       searchForm: {
-        taskId: '',
+        taskCode: '',
         taskName: ''
       },
-      warningList: [
-        {
-          taskId: 'JG0000000000014',
-          taskName: '虚假检查监测',
-          completeTime: '20250516 14:23:26',
-          totalCount: 200,
-          pendingFirstReview: 100,
-          hospitalReview: 0,
-          pendingFinalReview: 50,
-          finalReviewed: 50,
-          confirmedViolation: 12,
-          positiveRate: '6.00%'
-        },
-        {
-          taskId: 'JG0000000000015',
-          taskName: '虚假检查监测',
-          completeTime: '20250514 14:23:26',
-          totalCount: 5,
-          pendingFirstReview: 2,
-          hospitalReview: 0,
-          pendingFinalReview: 2,
-          finalReviewed: 1,
-          confirmedViolation: 0,
-          positiveRate: '0.00%'
-        },
-        {
-          taskId: 'JG0000000000011',
-          taskName: '虚假检查监测',
-          completeTime: '20250513 14:23:26',
-          totalCount: 100,
-          pendingFirstReview: 50,
-          hospitalReview: 0,
-          pendingFinalReview: 25,
-          finalReviewed: 25,
-          confirmedViolation: 20,
-          positiveRate: '20.00%'
-        },
-        {
-          taskId: 'JG0000000000010',
-          taskName: '虚假检查监测',
-          completeTime: '20250512 14:23:26',
-          totalCount: 100,
-          pendingFirstReview: 0,
-          hospitalReview: 0,
-          pendingFinalReview: 0,
-          finalReviewed: 100,
-          confirmedViolation: 20,
-          positiveRate: '20.00%'
-        },
-        {
-          taskId: 'JG0000000000012',
-          taskName: '重复检查监测',
-          completeTime: '20250511 14:23:26',
-          totalCount: 50,
-          pendingFirstReview: 25,
-          hospitalReview: 0,
-          pendingFinalReview: 15,
-          finalReviewed: 10,
-          confirmedViolation: 8,
-          positiveRate: '16.00%'
-        }
-      ],
+      warningList: [],
       pagination: {
         currentPage: 1,
         pageSize: 10,
-        total: 5
+        total: 0
       },
       viewDialogVisible: false,
       viewWarning: {}
     }
   },
+  mounted() {
+    this.fetchSummaryList()
+  },
   methods: {
+    // 获取预警汇总列表
+    async fetchSummaryList() {
+      this.loading = true
+      
+      const accessToken = this.$store.getters.accessToken
+      if (!accessToken) {
+        this.$message.error('未登录，请先登录')
+        this.loading = false
+        return
+      }
+      
+      try {
+        // 构建请求参数
+        const params = new URLSearchParams({
+          page: this.pagination.currentPage,
+          page_size: this.pagination.pageSize
+        })
+        
+        // 添加搜索条件
+        if (this.searchForm.taskCode) {
+          params.append('task_code', this.searchForm.taskCode)
+        }
+        if (this.searchForm.taskName) {
+          params.append('task_name', this.searchForm.taskName)
+        }
+        
+        const url = `/api/v1/summaries/?${params.toString()}`
+        
+        let response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        })
+        
+        // 如果是401错误，尝试刷新token（静默处理）
+        if (response.status === 401) {
+          const { handle401Error } = await import('@/utils/api')
+          const refreshSuccess = await handle401Error(this.$store, this.$router, true)
+          if (!refreshSuccess) {
+            // 刷新失败，已经跳转到登录页
+            this.loading = false
+            return
+          }
+          
+          // 刷新成功，使用新token重试请求
+          const newAccessToken = this.$store.getters.accessToken
+          response = await fetch(url, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${newAccessToken}`,
+              'Content-Type': 'application/json'
+            }
+          })
+          
+          // 如果重试后仍然是401，说明token仍然无效
+          if (response.status === 401) {
+            this.$store.commit('clearUser')
+            this.$router.push('/login')
+            this.loading = false
+            return
+          }
+        }
+        
+        // 读取响应文本
+        const text = await response.text()
+        let data = null
+        
+        // 尝试解析 JSON
+        try {
+          data = text ? JSON.parse(text) : null
+        } catch (e) {
+          console.error('解析预警汇总列表响应失败:', e)
+          if (!response.ok) {
+            throw new Error(`服务器返回了非 JSON 格式的响应 (${response.status})`)
+          }
+          this.loading = false
+          return
+        }
+        
+        // 检查响应码（统一响应格式中的 code 字段）
+        if (data && data.code !== undefined && data.code !== 0) {
+          // code 非0表示错误
+          const errorMessage = data.message || `获取预警汇总列表失败: code ${data.code}`
+          throw new Error(errorMessage)
+        }
+        
+        if (!response.ok) {
+          let errorMessage = `获取预警汇总列表失败: ${response.status}`
+          
+          // 处理统一错误响应格式：{ code, message, data: null }
+          if (data && data.code !== undefined && data.message) {
+            errorMessage = data.message
+          } else if (response.status === 401) {
+            // 如果到这里还是401，说明重试后仍然失败
+            this.$store.commit('clearUser')
+            this.$router.push('/login')
+            this.loading = false
+            return
+          } else if (response.status === 403) {
+            errorMessage = '权限不足，只有 ADMIN 角色才能访问'
+          } else if (data) {
+            if (data.detail) {
+              errorMessage = data.detail
+            } else if (data.message) {
+              errorMessage = data.message
+            }
+          }
+          
+          throw new Error(errorMessage)
+        }
+        
+        // 处理统一响应格式：{ code: 0, message: "success", data: { count, results } }
+        if (data && data.code === 0 && data.data && data.data.results) {
+          this.warningList = data.data.results
+          this.pagination.total = data.data.count || 0
+        } else if (data && data.results) {
+          // 兼容旧格式
+          this.warningList = data.results
+          this.pagination.total = data.count || 0
+        } else {
+          this.warningList = []
+          this.pagination.total = 0
+        }
+      } catch (error) {
+        console.error('获取预警汇总列表错误:', error)
+        const errorMessage = error.message || '获取预警汇总列表失败，请稍后重试'
+        this.$message.error(errorMessage)
+      } finally {
+        this.loading = false
+      }
+    },
     handleQuery() {
-      console.log('查询', this.searchForm)
-      // TODO: 实现查询逻辑，调用后端API
+      // 重置到第一页
+      this.pagination.currentPage = 1
+      this.fetchSummaryList()
     },
     handleReset() {
       this.searchForm = {
-        taskId: '',
+        taskCode: '',
         taskName: ''
       }
       // 重置后重新加载列表
-      this.handleQuery()
+      this.pagination.currentPage = 1
+      this.fetchSummaryList()
     },
     handleView(row) {
       // 跳转到预警详情列表页面
       this.$router.push({
-        path: '/warning-detail',
+        name: 'warning-detail',
         query: {
-          taskId: row.taskId,
-          taskName: row.taskName
+          taskId: row.task || row.id,
+          taskCode: row.task_code,
+          taskName: row.task_name
         }
       })
     },
@@ -252,15 +340,41 @@ export default {
     },
     handleSizeChange(val) {
       this.pagination.pageSize = val
-      this.handleQuery()
+      this.pagination.currentPage = 1
+      this.fetchSummaryList()
     },
     handleCurrentChange(val) {
       this.pagination.currentPage = val
-      this.handleQuery()
+      this.fetchSummaryList()
     },
-    getPositiveRateColor(rate) {
+    // 格式化日期时间
+    formatDateTime(dateTime) {
+      if (!dateTime) return '-'
+      try {
+        const date = new Date(dateTime)
+        const year = date.getFullYear()
+        const month = String(date.getMonth() + 1).padStart(2, '0')
+        const day = String(date.getDate()).padStart(2, '0')
+        const hours = String(date.getHours()).padStart(2, '0')
+        const minutes = String(date.getMinutes()).padStart(2, '0')
+        const seconds = String(date.getSeconds()).padStart(2, '0')
+        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+      } catch (e) {
+        return dateTime
+      }
+    },
+    // 格式化阳性率（从小数转为百分比）
+    formatPositiveRate(rate) {
+      if (rate === null || rate === undefined || rate === '') return '0.00%'
       const value = parseFloat(rate)
-      if (value === 0) {
+      if (isNaN(value)) return '0.00%'
+      return `${(value * 100).toFixed(2)}%`
+    },
+    // 获取阳性率颜色
+    getPositiveRateColor(rate) {
+      if (rate === null || rate === undefined || rate === '') return '#909399'
+      const value = parseFloat(rate) * 100 // 转换为百分比
+      if (isNaN(value) || value === 0) {
         return '#909399'
       } else if (value < 10) {
         return '#67C23A'

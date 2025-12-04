@@ -30,52 +30,20 @@
             style="color: #606266; padding: 5px;"
           ></el-button>
         </div>
-        <!-- 可添加侧边栏菜单示例 -->
+        <!-- 根据权限动态显示菜单项 -->
         <el-menu 
           :default-active="activeMenu" 
           class="el-menu-vertical-demo" 
           :collapse="isCollapse"
           @select="handleMenuSelect"
         >
-          <el-menu-item index="workspace">
-            <i class="el-icon-s-home"></i>
-            <span slot="title">工作台</span>
-          </el-menu-item>
-          <el-menu-item index="knowledge-base">
-            <i class="el-icon-document"></i>
-            <span slot="title">知识库管理</span>
-          </el-menu-item>
-          <el-menu-item index="rule-base">
-            <i class="el-icon-setting"></i>
-            <span slot="title">规则库管理</span>
-          </el-menu-item>
-          <el-menu-item index="database">
-            <i class="el-icon-box"></i>
-            <span slot="title">数据库管理</span>
-          </el-menu-item>
-          <el-menu-item index="model-base">
-            <i class="el-icon-cpu"></i>
-            <span slot="title">模型管理</span>
-          </el-menu-item>
-          <el-menu-item index="task-base">
-            <i class="el-icon-s-order"></i>
-            <span slot="title">任务管理</span>
-          </el-menu-item>
-          <el-menu-item index="warning-base">
-            <i class="el-icon-warning"></i>
-            <span slot="title">预警管理</span>
-          </el-menu-item>
-          <el-menu-item index="data-base">
-            <i class="el-icon-data-analysis"></i>
-            <span slot="title">数据统计</span>
-          </el-menu-item>
-          <el-menu-item index="log-base">
-            <i class="el-icon-document-copy"></i>
-            <span slot="title">日志管理</span>
-          </el-menu-item>
-          <el-menu-item index="permission-base">
-            <i class="el-icon-user-solid"></i>
-            <span slot="title">权限管理</span>
+          <el-menu-item 
+            v-for="item in menuItems" 
+            :key="item.index"
+            :index="item.index"
+          >
+            <i :class="item.icon"></i>
+            <span slot="title">{{ item.title }}</span>
           </el-menu-item>
         </el-menu>
       </el-aside>
@@ -89,6 +57,8 @@
 </template>
 
 <script>
+import { hasRoutePermission } from '@/utils/permissions'
+
 export default {
   name: 'LayoutExample',
   data() {
@@ -104,6 +74,31 @@ export default {
     },
     username() {
       return this.$store.getters.username || '未登录'
+    },
+    userRole() {
+      return this.$store.getters.role || ''
+    },
+    // 根据权限过滤菜单项
+    menuItems() {
+      const allMenuItems = [
+        { index: 'workspace', icon: 'el-icon-s-home', title: '工作台' },
+        { index: 'knowledge-base', icon: 'el-icon-document', title: '知识库管理' },
+        { index: 'rule-base', icon: 'el-icon-setting', title: '规则库管理' },
+        { index: 'database', icon: 'el-icon-box', title: '数据库管理' },
+        { index: 'model-base', icon: 'el-icon-cpu', title: '模型管理' },
+        { index: 'task-base', icon: 'el-icon-s-order', title: '任务管理' },
+        { index: 'warning-base', icon: 'el-icon-warning', title: '预警管理' },
+        { index: 'data-base', icon: 'el-icon-data-analysis', title: '数据统计' },
+        { index: 'log-base', icon: 'el-icon-document-copy', title: '日志管理' },
+        { index: 'permission-base', icon: 'el-icon-user-solid', title: '权限管理' },
+        { index: 'create-user', icon: 'el-icon-user', title: '创建用户' }
+      ]
+      
+      // System Administrator, Medical Insurance Administrator, Medical Insurance User 可以看到所有菜单项
+      // 其他角色根据权限过滤
+      return allMenuItems.filter(item => {
+        return hasRoutePermission(this.userRole, item.index)
+      })
     }
   },
   methods: {

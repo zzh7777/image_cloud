@@ -43,17 +43,6 @@
         </el-form-item>
       </el-form>
 
-      <div class="divider">
-        <span class="divider-text">或</span>
-      </div>
-
-      <div class="footer-links">
-        <span>还没有账号？</span>
-        <el-button type="text" @click="goToRegister" style="padding: 0; color: #409EFF;">
-          立即注册
-        </el-button>
-      </div>
-
       <div class="footer">
         <p class="copyright">© INS Lab, Xidian University @ 2025</p>
         <div class="footer-icons">
@@ -135,17 +124,17 @@ export default {
                 // 错误响应
                 let errorMessage = `登录失败: ${response.status}`
                 
-                // 401 错误表示 HOSPITAL 角色不能登录
+                // 401 错误表示认证失败
                 if (response.status === 401) {
-                  errorMessage = '只有 ADMIN 角色的用户才能登录'
+                  errorMessage = '用户名或密码错误'
                 } else if (data) {
                   // 处理不同的错误格式
                   if (typeof data === 'string') {
                     errorMessage = data
-                  } else if (data.detail) {
-                    errorMessage = data.detail
                   } else if (data.message) {
                     errorMessage = data.message
+                  } else if (data.detail) {
+                    errorMessage = data.detail
                   } else if (data.error) {
                     errorMessage = data.error
                   } else if (data.non_field_errors) {
@@ -175,31 +164,74 @@ export default {
                 throw new Error(errorMessage)
               }
               
-              // 成功响应，保存 token 和用户信息
-              if (data && data.access && data.refresh) {
-                // 保存 token
+              // 检查响应格式：新格式为 { code, message, data }
+              if (data && data.code !== undefined) {
+                // 新格式：{ code: 0, message: "success", data: { access, refresh, user } }
+                if (data.code === 0 && data.data) {
+                  if (data.data.access && data.data.refresh) {
+                    // 保存 token
+                    this.$store.commit('setTokens', {
+                      access: data.data.access,
+                      refresh: data.data.refresh
+                    })
+                    
+                    // 从登录响应中提取用户信息和角色
+                    const userData = data.data.user || {}
+                    // 从 groups 数组中提取角色（通常第一个是主要角色）
+                    let userRole = ''
+                    if (userData.groups && Array.isArray(userData.groups) && userData.groups.length > 0) {
+                      // 使用第一个角色，或者查找匹配的角色
+                      userRole = userData.groups[0]
+                    } else {
+                      // groups 为空，视为超级管理员 superuser，拥有所有权限
+                      userRole = 'Superuser'
+                    }
+                    
+                    // 保存用户信息（包括角色）
+                    this.$store.commit('setUser', {
+                      username: userData.username || this.loginForm.username,
+                      institutionType: userData.institution_type || userData.institutionType || '',
+                      role: userRole
+                    })
+                    
+                    console.log('登录成功，Token 已保存')
+                    console.log('用户信息:', {
+                      username: userData.username || this.loginForm.username,
+                      role: userRole,
+                      groups: userData.groups
+                    })
+                    return data
+                  } else {
+                    throw new Error(data.message || '登录响应中缺少 token 信息')
+                  }
+                } else {
+                  // code 不为 0 表示失败
+                  throw new Error('用户名或密码错误')
+                }
+              } else if (data && data.access && data.refresh) {
+                // 兼容旧格式：直接返回 { access, refresh }
                 this.$store.commit('setTokens', {
                   access: data.access,
                   refresh: data.refresh
                 })
                 
-                // 保存用户信息（从 token 中解析或使用用户名）
                 this.$store.commit('setUser', {
                   username: this.loginForm.username,
-                  institutionType: 'ADMIN' // 只有 ADMIN 能登录
+                  institutionType: 'ADMIN'
                 })
                 
                 console.log('登录成功，Token 已保存')
                 return data
               } else {
-                throw new Error('登录响应中缺少 token 信息')
+                throw new Error('登录响应格式不正确')
               }
             })
             .then(() => {
+              // 用户信息和角色已经在登录响应中提取并保存，不需要再次获取
               this.loading = false
               this.$message.success('登录成功')
               // 跳转到主页或之前尝试访问的页面
-              const redirect = this.$route.query.redirect || '/main'
+              const redirect = this.$route.query.redirect || '/main/workspace'
               this.$router.push(redirect)
             })
             .catch(error => {
@@ -214,9 +246,6 @@ export default {
           return false
         }
       })
-    },
-    goToRegister() {
-      this.$router.push('/register')
     }
   }
 }
@@ -284,29 +313,6 @@ export default {
   background-color: #fffef0;
 }
 
-.divider {
-  position: relative;
-  text-align: center;
-  margin: 30px 0;
-}
-
-.divider::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  height: 1px;
-  background-color: #e4e7ed;
-}
-
-.divider-text {
-  position: relative;
-  background-color: #ffffff;
-  padding: 0 15px;
-  color: #909399;
-}
-
 .footer {
   margin-top: 40px;
   text-align: center;
@@ -328,13 +334,6 @@ export default {
 
 .heart {
   color: #f56c6c;
-}
-
-.footer-links {
-  text-align: center;
-  margin-top: 20px;
-  color: #909399;
-  font-size: 14px;
 }
 
 .login-button-full {
