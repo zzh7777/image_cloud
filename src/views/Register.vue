@@ -52,7 +52,7 @@
           <div style="font-size: 12px; color: #909399; margin-top: 5px;">
             <span v-if="currentUserRole === 'System Administrator'">可以创建任何角色的用户</span>
             <span v-else-if="currentUserRole === 'Medical Insurance Administrator'">只能创建医保局管理员或医保局用户</span>
-            <span v-else-if="currentUserRole === 'Hospital Administrator'">只能为自己所在的医院创建医院管理员或医院用户</span>
+            <span v-else-if="isHospitalAdmin">只能为自己所在的医院创建医院管理员或医院用户</span>
           </div>
         </el-form-item>
 
@@ -61,7 +61,27 @@
           prop="hospitalCode"
           v-if="needsHospitalCode"
         >
+          <!-- 医院管理员：显示固定的医院信息（只读） -->
+          <div v-if="isHospitalAdmin" class="hospital-info-readonly" style="
+            padding: 10px 15px;
+            background-color: #f5f7fa;
+            border: 1px solid #dcdfe6;
+            border-radius: 4px;
+            color: #606266;
+            font-size: 14px;
+          ">
+            <div v-if="currentUserHospital && currentUserHospitalName" style="line-height: 1.8;">
+              <div><strong>医院编码：</strong>{{ currentUserHospital }}</div>
+              <div><strong>医院名称：</strong>{{ currentUserHospitalName }}</div>
+              <div v-if="currentUserHospitalLevel"><strong>医院等级：</strong>{{ currentUserHospitalLevel }}</div>
+            </div>
+            <div v-else style="color: #909399;">
+              <i class="el-icon-loading"></i> 正在加载医院信息...
+            </div>
+          </div>
+          <!-- 系统管理员/医保局管理员：显示可选择的医院下拉框 -->
           <el-select 
+            v-else
             v-model="registerForm.hospitalCode" 
             placeholder="请选择医院编码"
             style="width: 100%"
@@ -138,7 +158,9 @@ export default {
       hospitalLoading: false,
       availableHospitals: [],
       currentUserRole: '',
-      currentUserHospital: null
+      currentUserHospital: null,
+      currentUserHospitalName: '', // 当前用户所在医院名称
+      currentUserHospitalLevel: '' // 当前用户所在医院等级
     }
   },
   computed: {
@@ -179,13 +201,39 @@ export default {
     },
     // 判断是否需要医院编码
     needsHospitalCode() {
+      // 如果是医院管理员，不需要显示医院编码字段（后端会自动使用创建者的医院编码）
+      if (this.isHospitalAdmin) {
+        return false
+      }
+      
       if (!this.registerForm.groupNames || this.registerForm.groupNames.length === 0) {
         return false
       }
       // 如果选择的角色组中包含医院相关角色，则需要医院编码
-      return this.registerForm.groupNames.some(group => 
+      const needs = this.registerForm.groupNames.some(group => 
         group === 'Hospital Administrator' || group === 'Hospital User'
       )
+      console.log('角色组检查，是否需要医院编码:', needs, '选择的角色组:', this.registerForm.groupNames)
+      return needs
+    },
+    // 判断医院编码是否只读（医院管理员只能使用自己的医院编码）
+    isHospitalCodeReadonly() {
+      const role = this.currentUserRole
+      // 支持多种可能的角色名称格式
+      return role === 'Hospital Administrator' || 
+             role === '医院管理员' ||
+             role === 'hos_admin' ||
+             role === 'hospital_admin' ||
+             role?.toLowerCase().includes('hospital') && role?.toLowerCase().includes('admin')
+    },
+    // 判断是否为医院管理员（支持多种角色名称格式）
+    isHospitalAdmin() {
+      const role = this.currentUserRole
+      return role === 'Hospital Administrator' || 
+             role === '医院管理员' ||
+             role === 'hos_admin' ||
+             role === 'hospital_admin' ||
+             (role?.toLowerCase().includes('hospital') && role?.toLowerCase().includes('admin'))
     }
   },
   mounted() {
@@ -197,6 +245,7 @@ export default {
     
     // 获取当前用户角色
     this.currentUserRole = this.$store.getters.role
+    console.log('当前用户角色:', this.currentUserRole)
     
     // 检查权限
     if (this.currentUserRole !== 'Superuser' &&
@@ -208,14 +257,13 @@ export default {
       return
     }
     
-    // 如果是医院管理员，获取当前用户的医院信息
-    if (this.currentUserRole === 'Hospital Administrator') {
-      this.fetchCurrentUserInfo()
-    }
-    
-    // 如果需要医院编码选项，获取医院列表
-    if (this.needsHospitalCode || this.currentUserRole === 'Hospital Administrator') {
-      this.fetchHospitals()
+    // 医院管理员不需要获取医院信息（后端会自动使用创建者的医院编码）
+    // 其他角色，如果需要医院编码选项，获取医院列表
+    if (!this.isHospitalAdmin) {
+      // 其他角色，如果需要医院编码选项，获取医院列表
+      if (this.needsHospitalCode) {
+        this.fetchHospitals()
+      }
     }
   },
   watch: {
@@ -231,7 +279,7 @@ export default {
         })
       } else {
         // 如果是医院管理员，自动设置为当前用户的医院
-        if (this.currentUserRole === 'Hospital Administrator' && this.currentUserHospital) {
+        if (this.isHospitalAdmin && this.currentUserHospital) {
           this.registerForm.hospitalCode = this.currentUserHospital
         }
       }
@@ -261,11 +309,11 @@ export default {
       
       return errorMessage
     },
-    // 获取当前用户信息（用于医院管理员获取自己的医院编码）
+    // 获取当前用户信息（用于医院管理员获取自己的医院编码，仅在 store 中没有时使用）
     async fetchCurrentUserInfo() {
       const accessToken = this.$store.getters.accessToken
       if (!accessToken) {
-        return
+        return Promise.resolve()
       }
       
       try {
@@ -280,7 +328,7 @@ export default {
         if (response.status === 401) {
           const refreshSuccess = await handle401Error(this.$store, this.$router, false)
           if (!refreshSuccess) {
-            return
+            return Promise.resolve()
           }
           const newToken = this.$store.getters.accessToken
           const retryResponse = await fetch('/api/v1/users/me/', {
@@ -294,85 +342,180 @@ export default {
           if (retryResponse.ok) {
             const text = await retryResponse.text()
             const data = text ? JSON.parse(text) : null
-            if (data && data.hospital) {
-              this.currentUserHospital = data.hospital
+            console.log('用户信息响应 (401重试):', data)
+            // 处理统一响应格式
+            if (data) {
+              const userData = data.data || data
+              if (userData.hospital) {
+                this.currentUserHospital = userData.hospital
+                console.log('获取到当前用户的医院编码:', userData.hospital)
+              } else if (userData.hospital_code) {
+                this.currentUserHospital = userData.hospital_code
+                console.log('获取到当前用户的医院编码:', userData.hospital_code)
+              }
             }
           }
         } else if (response.ok) {
           const text = await response.text()
           const data = text ? JSON.parse(text) : null
-          if (data && data.hospital) {
-            this.currentUserHospital = data.hospital
+          console.log('用户信息响应:', data)
+          // 处理统一响应格式
+          if (data) {
+            const userData = data.data || data
+            if (userData.hospital) {
+              this.currentUserHospital = userData.hospital
+              console.log('获取到当前用户的医院编码:', userData.hospital)
+            } else if (userData.hospital_code) {
+              this.currentUserHospital = userData.hospital_code
+              console.log('获取到当前用户的医院编码:', userData.hospital_code)
+            }
             // 如果已经选择了医院角色，自动设置医院编码
-            if (this.needsHospitalCode && !this.registerForm.hospitalCode) {
-              this.registerForm.hospitalCode = data.hospital
+            if (this.needsHospitalCode && !this.registerForm.hospitalCode && this.currentUserHospital) {
+              this.registerForm.hospitalCode = this.currentUserHospital
             }
           }
+        } else {
+          console.error('获取用户信息失败，状态码:', response.status)
         }
+        return Promise.resolve()
       } catch (error) {
         console.error('获取当前用户信息失败:', error)
+        return Promise.resolve()
       }
     },
-    // 获取医院列表
-    async fetchHospitals() {
+    // 获取医院详情（使用 /api/v1/hospitals/{hospital_code}/ 接口）
+    async fetchHospitalDetail(hospitalCode) {
       const accessToken = this.$store.getters.accessToken
-      if (!accessToken) {
-        return
+      console.log('fetchHospitalDetail 调用:', { hospitalCode, hasToken: !!accessToken })
+      
+      if (!accessToken || !hospitalCode) {
+        console.warn('无法获取医院详情：缺少访问令牌或医院编码', { accessToken: !!accessToken, hospitalCode })
+        this.hospitalLoading = false
+        return Promise.resolve()
       }
       
       this.hospitalLoading = true
       
       try {
-        // 如果是医院管理员，只显示自己所在的医院
-        if (this.currentUserRole === 'Hospital Administrator') {
-          await this.fetchCurrentUserInfo()
-          if (this.currentUserHospital) {
-            // 只获取当前用户的医院
-            const response = await fetch(`/api/v1/hospitals/?hospital_code=${this.currentUserHospital}`, {
-              method: 'GET',
-              headers: {
-                'Authorization': `Bearer ${accessToken}`,
-                'Content-Type': 'application/json'
-              }
-            })
-            
-            if (response.status === 401) {
-              const refreshSuccess = await handle401Error(this.$store, this.$router, false)
-              if (!refreshSuccess) {
-                this.hospitalLoading = false
-                return
-              }
-              const newToken = this.$store.getters.accessToken
-              const retryResponse = await fetch(`/api/v1/hospitals/?hospital_code=${this.currentUserHospital}`, {
-                method: 'GET',
-                headers: {
-                  'Authorization': `Bearer ${newToken}`,
-                  'Content-Type': 'application/json'
-                }
-              })
-              
-              if (retryResponse.ok) {
-                const text = await retryResponse.text()
-                const data = text ? JSON.parse(text) : null
-                if (data && data.code === 0 && data.data && data.data.results) {
-                  this.availableHospitals = data.data.results.map(item => ({
-                    hospitalCode: item.hospital_code || item.hospitalCode,
-                    hospitalName: item.hospital_name || item.hospitalName
-                  }))
-                }
-              }
-            } else if (response.ok) {
-              const text = await response.text()
-              const data = text ? JSON.parse(text) : null
-              if (data && data.code === 0 && data.data && data.data.results) {
-                this.availableHospitals = data.data.results.map(item => ({
-                  hospitalCode: item.hospital_code || item.hospitalCode,
-                  hospitalName: item.hospital_name || item.hospitalName
-                }))
-              }
-            }
+        const url = `/api/v1/hospitals/${hospitalCode}/`
+        console.log('请求医院详情 URL:', url)
+        
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
           }
+        })
+        
+        console.log('医院详情响应状态:', response.status, response.statusText)
+        
+        if (response.status === 401) {
+          const refreshSuccess = await handle401Error(this.$store, this.$router, false)
+          if (!refreshSuccess) {
+            this.hospitalLoading = false
+            return Promise.resolve()
+          }
+          const newToken = this.$store.getters.accessToken
+          const retryResponse = await fetch(url, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${newToken}`,
+              'Content-Type': 'application/json'
+            }
+          })
+          
+          console.log('医院详情重试响应状态:', retryResponse.status)
+          
+          if (retryResponse.ok) {
+            const text = await retryResponse.text()
+            console.log('医院详情响应文本 (401重试):', text.substring(0, 200))
+            const data = text ? JSON.parse(text) : null
+            console.log('医院详情响应数据 (401重试):', data)
+            this.processHospitalDetailResponse(data, hospitalCode)
+          } else {
+            console.error('获取医院详情失败，重试响应状态:', retryResponse.status)
+            const errorText = await retryResponse.text()
+            console.error('错误响应文本:', errorText)
+          }
+          this.hospitalLoading = false
+        } else if (response.ok) {
+          const text = await response.text()
+          console.log('医院详情响应文本:', text.substring(0, 200))
+          const data = text ? JSON.parse(text) : null
+          console.log('医院详情响应数据:', data)
+          this.processHospitalDetailResponse(data, hospitalCode)
+          this.hospitalLoading = false
         } else {
+          const errorText = await response.text()
+          console.error('获取医院详情失败，响应状态:', response.status)
+          console.error('错误响应文本:', errorText)
+          this.hospitalLoading = false
+        }
+        return Promise.resolve()
+      } catch (error) {
+        console.error('获取医院详情时发生错误:', error)
+        this.hospitalLoading = false
+        return Promise.resolve()
+      }
+    },
+    // 处理医院详情响应
+    processHospitalDetailResponse(data, hospitalCode) {
+      console.log('processHospitalDetailResponse 调用:', { data, hospitalCode })
+      
+      if (data && data.code === 0 && data.data) {
+        const hospital = data.data
+        console.log('解析医院数据:', hospital)
+        // 存储医院信息
+        this.currentUserHospital = hospital.hospital_code || hospitalCode
+        this.currentUserHospitalName = hospital.hospital_name || ''
+        this.currentUserHospitalLevel = hospital.hospital_level || ''
+        // 设置医院编码到表单
+        this.registerForm.hospitalCode = this.currentUserHospital
+        console.log('医院管理员获取医院信息成功:', {
+          code: this.currentUserHospital,
+          name: this.currentUserHospitalName,
+          level: this.currentUserHospitalLevel
+        })
+        console.log('当前组件状态:', {
+          currentUserHospital: this.currentUserHospital,
+          currentUserHospitalName: this.currentUserHospitalName,
+          currentUserHospitalLevel: this.currentUserHospitalLevel
+        })
+      } else {
+        console.warn('医院详情响应格式不正确:', data)
+        // 尝试其他可能的响应格式
+        if (data && data.data) {
+          const hospital = data.data
+          this.currentUserHospital = hospital.hospital_code || hospital.hospitalCode || hospitalCode
+          this.currentUserHospitalName = hospital.hospital_name || hospital.hospitalName || ''
+          this.currentUserHospitalLevel = hospital.hospital_level || hospital.hospitalLevel || ''
+          this.registerForm.hospitalCode = this.currentUserHospital
+          console.log('医院管理员获取医院信息 (备用格式):', {
+            code: this.currentUserHospital,
+            name: this.currentUserHospitalName,
+            level: this.currentUserHospitalLevel
+          })
+        }
+      }
+    },
+    // 获取医院列表（仅用于系统管理员和医保局管理员）
+    async fetchHospitals() {
+      const accessToken = this.$store.getters.accessToken
+      if (!accessToken) {
+        console.warn('未获取到访问令牌，无法获取医院列表')
+        return Promise.resolve()
+      }
+      
+      // 如果是医院管理员，应该使用 fetchHospitalDetail 方法，不应该调用这个方法
+      if (this.isHospitalAdmin) {
+        console.warn('医院管理员不应该调用 fetchHospitals 方法')
+        return Promise.resolve()
+      }
+      
+      this.hospitalLoading = true
+      
+      try {
           // 系统管理员和医保局管理员可以查看所有医院
           let allHospitals = []
           let page = 1
@@ -435,12 +578,14 @@ export default {
           }
           
           this.availableHospitals = allHospitals
-        }
+          console.log('系统管理员/医保局管理员可用医院列表:', this.availableHospitals.length, '个医院')
       } catch (error) {
         console.error('获取医院列表失败:', error)
       } finally {
         this.hospitalLoading = false
       }
+      
+      return Promise.resolve()
     },
     // 角色组变化处理
     handleGroupNamesChange() {
@@ -450,7 +595,7 @@ export default {
       }
       
       // 如果是医院管理员，自动设置医院编码
-      if (this.currentUserRole === 'Hospital Administrator' && this.currentUserHospital) {
+      if (this.isHospitalAdmin && this.currentUserHospital) {
         this.registerForm.hospitalCode = this.currentUserHospital
       }
     },
@@ -466,11 +611,20 @@ export default {
           
           // 如果选择了医院角色，添加医院编码
           if (this.needsHospitalCode) {
+            // 系统管理员或医保局管理员需要选择医院编码
             if (!this.registerForm.hospitalCode || this.registerForm.hospitalCode.trim() === '') {
               this.$message.error('请选择医院编码')
               return false
             }
             requestData.hospital_code = this.registerForm.hospitalCode
+          } else if (this.isHospitalAdmin) {
+            // 医院管理员：后端会自动使用创建者的医院编码，不需要前端传递
+            // 但为了确保，我们可以从 store 获取并传递（如果后端需要的话）
+            const hospitalCode = this.$store.getters.hospital
+            if (hospitalCode) {
+              requestData.hospital_code = hospitalCode
+              console.log('医院管理员创建用户，使用医院编码:', hospitalCode)
+            }
           }
           
           // 获取认证token

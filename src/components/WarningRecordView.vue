@@ -349,9 +349,9 @@
               size="small">
               进行终审
             </el-button>
-          </div>
         </div>
       </div>
+    </div>
     </div>
 
     <!-- 截图预览对话框 -->
@@ -1063,12 +1063,20 @@ export default {
           this.$set(this, 'treatmentData', {})
         }
         
-        // 解析图片数据
+        // 解析图片数据（base64 编码）
         const images = detailData.images || {}
         console.log('images:', images)
+        
+        // 解析申请信息图片（base64 数组）
         this.$set(this, 'applicationImages', images.application_info_images || [])
+        
+        // 解析报告信息图片（base64 数组）
         this.$set(this, 'reportImages', images.report_info_images || [])
+        
+        // 解析影像信息图片（base64 数组）
+        // 直接使用后端返回的 base64 编码
         this.$set(this, 'dicomImages', images.dicom_images || [])
+        
         console.log('图片数据:', {
           applicationImages: this.applicationImages.length,
           reportImages: this.reportImages.length,
@@ -2128,9 +2136,33 @@ export default {
       // TODO: 实现文件查看功能
     },
     handleImageError(event) {
-      // 图片加载失败时的处理
-      console.error('图片加载失败:', event.target.src.substring(0, 50))
-      event.target.style.display = 'none'
+      const imgSrc = event.target.src
+      console.error('图片加载失败:', {
+        src: imgSrc,
+        error: event,
+        imgElement: event.target
+      })
+      
+      // 如果是 minio URL，尝试通过后端代理访问
+      if (imgSrc && imgSrc.includes('10.198.236.252:9000')) {
+        console.warn('Minio 直接访问失败，可能需要通过后端代理访问')
+        // 可以在这里添加通过后端 API 获取图片的逻辑
+        // 例如：/api/v1/minio/proxy?path=...
+      }
+      
+      // 可以在这里添加错误处理逻辑，比如显示占位图
+      // event.target.src = '/placeholder.png'
+    },
+    // 测试 minio URL 是否可访问
+    async testMinioUrl(url) {
+      try {
+        const response = await fetch(url, { method: 'HEAD' })
+        console.log('Minio URL 测试:', { url, status: response.status, ok: response.ok })
+        return response.ok
+      } catch (error) {
+        console.error('Minio URL 测试失败:', { url, error: error.message })
+        return false
+      }
     }
   }
 }

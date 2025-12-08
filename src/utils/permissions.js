@@ -99,8 +99,16 @@ export function hasRoutePermission(role, routeName) {
     return true
   }
 
-  // workspace 和 personal-info 对所有角色开放
-  if (routeName === 'workspace' || routeName === 'personal-info') {
+  // personal-info 对所有角色开放
+  if (routeName === 'personal-info') {
+    return true
+  }
+  
+  // 工作台：医院管理员和医院用户不能访问
+  if (routeName === 'workspace') {
+    if (role === 'Hospital Administrator' || role === 'Hospital User') {
+      return false
+    }
     return true
   }
 

@@ -8,7 +8,8 @@ export default new Vuex.Store({
     user: {
       username: '',
       institutionType: '',
-      role: '' // 用户角色：System Administrator, Medical Insurance Administrator, Medical Insurance User, Hospital Administrator, Hospital User
+      role: '', // 用户角色：System Administrator, Medical Insurance Administrator, Medical Insurance User, Hospital Administrator, Hospital User
+      hospital: '' // 医院编码（仅医院角色有）
     },
     tokens: {
       access: '',
@@ -20,17 +21,25 @@ export default new Vuex.Store({
     username: state => state.user.username,
     institutionType: state => state.user.institutionType,
     role: state => state.user.role,
+    hospital: state => state.user.hospital, // 获取医院编码
     isLoggedIn: state => state.isLoggedIn,
     accessToken: state => state.tokens.access,
     refreshToken: state => state.tokens.refresh
   },
   mutations: {
     setUser(state, user) {
-      state.user = user
+      // 确保 hospital 字段存在
+      state.user = {
+        username: user.username || '',
+        institutionType: user.institutionType || '',
+        role: user.role || '',
+        hospital: user.hospital || ''
+      }
       state.isLoggedIn = true
       // 保存到localStorage
-      localStorage.setItem('user', JSON.stringify(user))
+      localStorage.setItem('user', JSON.stringify(state.user))
       localStorage.setItem('isLoggedIn', 'true')
+      console.log('Store setUser:', state.user)
     },
     setTokens(state, tokens) {
       state.tokens = {
@@ -45,7 +54,8 @@ export default new Vuex.Store({
       state.user = {
         username: '',
         institutionType: '',
-        role: ''
+        role: '',
+        hospital: ''
       }
       state.tokens = {
         access: '',
@@ -64,8 +74,15 @@ export default new Vuex.Store({
       const accessToken = localStorage.getItem('accessToken')
       const refreshToken = localStorage.getItem('refreshToken')
       if (user && isLoggedIn === 'true') {
-        state.user = JSON.parse(user)
+        const parsedUser = JSON.parse(user)
+        state.user = {
+          username: parsedUser.username || '',
+          institutionType: parsedUser.institutionType || '',
+          role: parsedUser.role || '',
+          hospital: parsedUser.hospital || ''
+        }
         state.isLoggedIn = true
+        console.log('Store initUser 从 localStorage 恢复:', state.user)
       }
       if (accessToken && refreshToken) {
         state.tokens = {
@@ -125,11 +142,12 @@ export default new Vuex.Store({
             userRole = userData.user_type
           }
           
-          // 更新用户信息，包括角色
+          // 更新用户信息，包括角色和医院编码
           const updatedUser = {
             username: userData.username || getters.username,
             institutionType: userData.institution_type || userData.institutionType || '',
-            role: userRole
+            role: userRole,
+            hospital: userData.hospital || getters.hospital || '' // 保存医院编码
           }
           commit('setUser', updatedUser)
           return updatedUser
@@ -148,7 +166,8 @@ export default new Vuex.Store({
           const updatedUser = {
             username: data.username,
             institutionType: data.institution_type || data.institutionType || '',
-            role: userRole
+            role: userRole,
+            hospital: data.hospital || '' // 保存医院编码
           }
           commit('setUser', updatedUser)
           return updatedUser

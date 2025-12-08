@@ -107,10 +107,19 @@ export default {
                 // 如果不是 JSON，可能是 HTML 错误页面
                 console.error('响应不是有效的 JSON:', text.substring(0, 500))
                 console.error('完整响应文本:', text)
+                console.error('请求URL:', '/api/v1/token/')
+                console.error('代理目标:', 'http://10.198.236.252:8000')
                 if (!response.ok) {
                   // 404 错误时，显示更详细的信息
                   if (response.status === 404) {
-                    throw new Error(`API 路径不存在 (404)。请检查登录接口路径是否正确。响应内容: ${text.substring(0, 200)}`)
+                    const errorMsg = `API 路径不存在 (404)。\n` +
+                      `请检查：\n` +
+                      `1. 后端服务是否启动在 http://10.198.236.252:8000\n` +
+                      `2. 登录接口路径是否为 /api/v1/token/\n` +
+                      `3. 网络是否连通\n` +
+                      `4. 如果端口不是8000，请修改 vue.config.js 中的端口号\n` +
+                      `响应内容: ${text.substring(0, 200)}`
+                    throw new Error(errorMsg)
                   }
                   throw new Error(`服务器返回了非 JSON 格式的错误响应 (${response.status})`)
                 }
@@ -191,7 +200,8 @@ export default {
                     this.$store.commit('setUser', {
                       username: userData.username || this.loginForm.username,
                       institutionType: userData.institution_type || userData.institutionType || '',
-                      role: userRole
+                      role: userRole,
+                      hospital: userData.hospital || '' // 保存医院编码
                     })
                     
                     console.log('登录成功，Token 已保存')
@@ -230,9 +240,25 @@ export default {
               // 用户信息和角色已经在登录响应中提取并保存，不需要再次获取
               this.loading = false
               this.$message.success('登录成功')
+              
+              // 根据用户角色决定默认重定向页面
+              const userRole = this.$store.getters.role
+              let defaultRedirect = '/main/workspace'
+              
+              // 医院管理员和医院用户默认重定向到预警列表
+              if (userRole === 'Hospital Administrator' || userRole === 'Hospital User') {
+                defaultRedirect = '/main/warning-base'
+              }
+              
               // 跳转到主页或之前尝试访问的页面
-              const redirect = this.$route.query.redirect || '/main/workspace'
-              this.$router.push(redirect)
+              const redirect = this.$route.query.redirect || defaultRedirect
+              
+              // 如果重定向目标是工作台，但用户是医院管理员或医院用户，则重定向到预警列表
+              if (redirect === '/main/workspace' && (userRole === 'Hospital Administrator' || userRole === 'Hospital User')) {
+                this.$router.push('/main/warning-base')
+              } else {
+                this.$router.push(redirect)
+              }
             })
             .catch(error => {
               this.loading = false

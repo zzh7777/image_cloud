@@ -154,16 +154,41 @@ router.beforeEach((to, from, next) => {
       const routeName = to.name
       const userRole = store.getters.role
       
-      // workspace 和 personal-info 对所有已登录用户开放，不需要检查权限
-      if (routeName === 'workspace' || routeName === 'personal-info') {
+      // personal-info 对所有已登录用户开放，不需要检查权限
+      if (routeName === 'personal-info') {
         next()
+        return
+      }
+      
+      // 工作台：医院管理员和医院用户不能访问
+      if (routeName === 'workspace' || to.path === '/main/workspace') {
+        if (userRole === 'Hospital Administrator' || userRole === 'Hospital User') {
+          // 医院管理员和医院用户不能访问工作台，重定向到预警列表
+          console.warn(`用户 ${store.getters.username} (角色: ${userRole}) 不能访问工作台`)
+          next('/main/warning-base')
+          return
+        }
+        // 其他角色可以访问工作台
+        next()
+        return
+      }
+      
+      // 处理 /main 和 /workspace 路径的重定向（根据用户角色）
+      if (to.path === '/main' || to.path === '/workspace') {
+        if (userRole === 'Hospital Administrator' || userRole === 'Hospital User') {
+          // 医院管理员和医院用户重定向到预警列表
+          next('/main/warning-base')
+          return
+        }
+        // 其他角色重定向到工作台
+        next('/main/workspace')
         return
       }
       
       // 如果角色为空，允许访问 workspace（避免循环重定向）
       if (!userRole) {
         console.warn('用户角色未设置，允许访问工作台')
-        if (routeName !== 'workspace') {
+        if (routeName !== 'workspace' && to.path !== '/main/workspace') {
           next('/main/workspace')
         } else {
           next()
@@ -173,11 +198,11 @@ router.beforeEach((to, from, next) => {
       
       // 如果有路由名称，检查权限
       if (routeName && !hasRoutePermission(userRole, routeName)) {
-        // 没有权限，重定向到工作台（避免循环重定向）
+        // 没有权限，根据角色重定向到合适的页面
         console.warn(`用户 ${store.getters.username} (角色: ${userRole}) 没有权限访问 ${routeName}`)
-        // 如果已经在 workspace，直接允许访问，避免循环
-        if (to.path === '/main/workspace' || to.name === 'workspace') {
-          next()
+        // 医院管理员和医院用户重定向到预警列表，其他角色重定向到工作台
+        if (userRole === 'Hospital Administrator' || userRole === 'Hospital User') {
+          next('/main/warning-base')
         } else {
           next('/main/workspace')
         }
@@ -192,8 +217,13 @@ router.beforeEach((to, from, next) => {
       })
     }
   } else if (to.path === '/login' && store.getters.isLoggedIn) {
-    // 已登录用户访问登录页，重定向到主页
-    next('/main/workspace')
+    // 已登录用户访问登录页，根据角色重定向到合适的页面
+    const userRole = store.getters.role
+    if (userRole === 'Hospital Administrator' || userRole === 'Hospital User') {
+      next('/main/warning-base')
+    } else {
+      next('/main/workspace')
+    }
   } else if (to.path === '/register') {
     // 注册页面需要登录
     if (store.getters.isLoggedIn) {
