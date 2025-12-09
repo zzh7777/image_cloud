@@ -1073,9 +1073,16 @@ export default {
         // 解析报告信息图片（base64 数组）
         this.$set(this, 'reportImages', images.report_info_images || [])
         
-        // 解析影像信息图片（base64 数组）
-        // 直接使用后端返回的 base64 编码
-        this.$set(this, 'dicomImages', images.dicom_images || [])
+        // 解析影像信息图片（使用 presigned_url）
+        // 从 dicom_images 数组中提取第一个元素的 presigned_url
+        const dicomImagesArray = images.dicom_images || []
+        if (dicomImagesArray.length > 0 && dicomImagesArray[0].presigned_url) {
+          // 直接使用后端返回的 presigned_url
+          const presignedUrl = dicomImagesArray[0].presigned_url
+          this.$set(this, 'dicomImages', [presignedUrl])
+        } else {
+          this.$set(this, 'dicomImages', [])
+        }
         
         console.log('图片数据:', {
           applicationImages: this.applicationImages.length,

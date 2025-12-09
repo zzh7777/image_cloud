@@ -34,10 +34,10 @@
           ></el-input>
         </el-form-item>
 
-        <el-form-item label="角色组" prop="groupNames">
+        <el-form-item label="角色" prop="groupNames">
           <el-select 
             v-model="registerForm.groupNames" 
-            placeholder="请选择角色组"
+            placeholder="请选择角色"
             style="width: 100%"
             multiple
             @change="handleGroupNamesChange"
@@ -147,8 +147,8 @@ export default {
           { min: 8, message: '密码长度不能少于8位', trigger: 'blur' }
         ],
         groupNames: [
-          { required: true, message: '请选择角色组', trigger: 'change' },
-          { type: 'array', min: 1, message: '至少选择一个角色组', trigger: 'change' }
+          { required: true, message: '请选择角色', trigger: 'change' },
+          { type: 'array', min: 1, message: '至少选择一个角色', trigger: 'change' }
         ],
         hospitalCode: [
           { validator: validateHospitalCode, trigger: 'change' }
@@ -164,7 +164,7 @@ export default {
     }
   },
   computed: {
-    // 根据当前用户角色，计算可用的角色组选项
+    // 根据当前用户角色，计算可用的角色选项
     availableGroupOptions() {
       const role = this.currentUserRole
       
@@ -209,11 +209,11 @@ export default {
       if (!this.registerForm.groupNames || this.registerForm.groupNames.length === 0) {
         return false
       }
-      // 如果选择的角色组中包含医院相关角色，则需要医院编码
+      // 如果选择的角色中包含医院相关角色，则需要医院编码
       const needs = this.registerForm.groupNames.some(group => 
         group === 'Hospital Administrator' || group === 'Hospital User'
       )
-      console.log('角色组检查，是否需要医院编码:', needs, '选择的角色组:', this.registerForm.groupNames)
+      console.log('角色检查，是否需要医院编码:', needs, '选择的角色:', this.registerForm.groupNames)
       return needs
     },
     // 判断医院编码是否只读（医院管理员只能使用自己的医院编码）
@@ -267,7 +267,7 @@ export default {
     }
   },
   watch: {
-    // 监听角色组变化
+    // 监听角色变化
     'registerForm.groupNames'() {
       // 如果不再需要医院编码，清空医院编码
       if (!this.needsHospitalCode) {
@@ -587,7 +587,7 @@ export default {
       
       return Promise.resolve()
     },
-    // 角色组变化处理
+    // 角色变化处理
     handleGroupNamesChange() {
       // 如果选择了医院角色，需要获取医院列表
       if (this.needsHospitalCode && this.availableHospitals.length === 0) {

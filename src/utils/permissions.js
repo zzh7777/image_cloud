@@ -89,12 +89,22 @@ const ROUTE_TO_PERMISSION_MAP = {
  * @returns {boolean} - 是否有权限
  */
 export function hasRoutePermission(role, routeName) {
-  // Superuser / System Administrator 拥有所有权限，可以访问所有页面
-  if (role === 'Superuser' || role === 'System Administrator') {
+  // 权限管理页面只有 Superuser 可以访问
+  if (routeName === 'permission-base') {
+    return role === 'Superuser'
+  }
+
+  // Superuser 拥有所有权限，可以访问所有页面
+  if (role === 'Superuser') {
     return true
   }
 
-  // Medical Insurance Administrator 可以访问所有页面
+  // System Administrator 可以访问除权限管理外的所有页面
+  if (role === 'System Administrator') {
+    return true
+  }
+
+  // Medical Insurance Administrator 可以访问除权限管理外的所有页面
   if (role === 'Medical Insurance Administrator') {
     return true
   }
@@ -214,9 +224,14 @@ export function getAccessibleRoutes(role) {
     return []
   }
 
-  // Superuser、System Administrator、Medical Insurance Administrator 可以访问所有路由
-  if (role === 'Superuser' || role === 'System Administrator' || role === 'Medical Insurance Administrator') {
+  // Superuser 可以访问所有路由（包括权限管理）
+  if (role === 'Superuser') {
     return Object.keys(ROUTE_TO_PERMISSION_MAP)
+  }
+
+  // System Administrator 和 Medical Insurance Administrator 可以访问除权限管理外的所有路由
+  if (role === 'System Administrator' || role === 'Medical Insurance Administrator') {
+    return Object.keys(ROUTE_TO_PERMISSION_MAP).filter(routeName => routeName !== 'permission-base')
   }
 
   // Medical Insurance User 不能访问日志管理和权限管理
