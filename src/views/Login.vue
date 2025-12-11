@@ -186,22 +186,43 @@ export default {
                     
                     // 从登录响应中提取用户信息和角色
                     const userData = data.data.user || {}
-                    // 从 groups 数组中提取角色（通常第一个是主要角色）
+                    const rolesData = data.data.roles || []
+                    const roleLevel = data.data.role_level
+                    
+                    // 优先从 roles 数组和 role_level 判断系统管理员
                     let userRole = ''
-                    if (userData.groups && Array.isArray(userData.groups) && userData.groups.length > 0) {
-                      // 使用第一个角色，或者查找匹配的角色
-                      userRole = userData.groups[0]
-                    } else {
-                      // groups 为空，视为超级管理员 superuser，拥有所有权限
-                      userRole = 'Superuser'
+                    if (rolesData && Array.isArray(rolesData) && rolesData.length > 0) {
+                      const firstRole = rolesData[0]
+                      // 如果 role_level 是 super 且 role_type 是 system，则是系统管理员（Superuser）
+                      if (roleLevel === 'super' && firstRole.role_type === 'system') {
+                        userRole = 'Superuser'
+                      } else if (firstRole.name) {
+                        // 否则使用角色的 name
+                        userRole = firstRole.name
+                      }
                     }
                     
-                    // 保存用户信息（包括角色）
+                    // 如果从 roles 中没有获取到角色，则从 groups 数组中提取角色（向后兼容）
+                    if (!userRole) {
+                      if (userData.groups && Array.isArray(userData.groups) && userData.groups.length > 0) {
+                        // 使用第一个角色
+                        userRole = userData.groups[0]
+                      } else {
+                        // groups 为空，视为超级管理员 superuser，拥有所有权限
+                        userRole = 'Superuser'
+                      }
+                    }
+                    
+                    // 保存用户信息（包括角色、角色级别、角色类型、医院编码和医院名称）
+                    const firstRole = rolesData && rolesData.length > 0 ? rolesData[0] : null
                     this.$store.commit('setUser', {
                       username: userData.username || this.loginForm.username,
                       institutionType: userData.institution_type || userData.institutionType || '',
                       role: userRole,
-                      hospital: userData.hospital || '' // 保存医院编码
+                      hospital: userData.hospital || data.data.hospital_code || '', // 保存医院编码
+                      hospital_name: data.data.hospital_name || '', // 保存医院名称
+                      role_level: roleLevel || '', // 保存角色级别
+                      role_type: firstRole ? firstRole.role_type || '' : '' // 保存角色类型
                     })
                     
                     console.log('登录成功，Token 已保存')

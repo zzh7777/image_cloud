@@ -3,7 +3,7 @@
     <!-- 标题区域 -->
     <div class="title-section">
       <div class="title-bar"></div>
-      <h2 class="title">数据库管理</h2>
+      <h2 class="title">数据源管理</h2>
     </div>
 
     <!-- 搜索区域 -->

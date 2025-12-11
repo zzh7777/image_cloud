@@ -78,13 +78,16 @@ export default {
     userRole() {
       return this.$store.getters.role || ''
     },
+    userRoleLevel() {
+      return this.$store.getters.roleLevel || ''
+    },
     // 根据权限过滤菜单项
     menuItems() {
       const allMenuItems = [
         { index: 'workspace', icon: 'el-icon-s-home', title: '工作台' },
         { index: 'knowledge-base', icon: 'el-icon-document', title: '知识库管理' },
         { index: 'rule-base', icon: 'el-icon-setting', title: '规则库管理' },
-        { index: 'database', icon: 'el-icon-box', title: '数据库管理' },
+        { index: 'database', icon: 'el-icon-box', title: '数据源管理' },
         { index: 'model-base', icon: 'el-icon-cpu', title: '模型管理' },
         { index: 'task-base', icon: 'el-icon-s-order', title: '任务管理' },
         { index: 'warning-base', icon: 'el-icon-warning', title: '预警管理' },
@@ -94,9 +97,13 @@ export default {
         { index: 'create-user', icon: 'el-icon-user', title: '创建用户' }
       ]
       
-      // System Administrator, Medical Insurance Administrator, Medical Insurance User 可以看到所有菜单项
-      // 其他角色根据权限过滤
+      // 根据权限过滤菜单项
       return allMenuItems.filter(item => {
+        // 创建用户页面：只有 role_level === 'admin' 的管理员或 Superuser 可以访问
+        if (item.index === 'create-user') {
+          return this.userRoleLevel === 'admin' || this.userRole === 'Superuser'
+        }
+        // 其他页面使用原有的权限检查
         return hasRoutePermission(this.userRole, item.index)
       })
     }

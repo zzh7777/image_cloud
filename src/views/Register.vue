@@ -39,7 +39,6 @@
             v-model="registerForm.groupNames" 
             placeholder="请选择角色"
             style="width: 100%"
-            multiple
             @change="handleGroupNamesChange"
           >
             <el-option 
@@ -50,36 +49,32 @@
             ></el-option>
           </el-select>
           <div style="font-size: 12px; color: #909399; margin-top: 5px;">
-            <span v-if="currentUserRole === 'System Administrator'">可以创建任何角色的用户</span>
+            <span v-if="currentUserRole === 'System Administrator'">只能创建医院管理员或医保管理员</span>
             <span v-else-if="currentUserRole === 'Medical Insurance Administrator'">只能创建医保局管理员或医保局用户</span>
             <span v-else-if="isHospitalAdmin">只能为自己所在的医院创建医院管理员或医院用户</span>
           </div>
         </el-form-item>
 
         <el-form-item 
-          label="医院编码" 
+          label="所在医院" 
           prop="hospitalCode"
-          v-if="needsHospitalCode"
+          v-if="needsHospitalCode || (currentUserRoleType === 'hospital')"
         >
-          <!-- 医院管理员：显示固定的医院信息（只读） -->
-          <div v-if="isHospitalAdmin" class="hospital-info-readonly" style="
+          <!-- 医院管理员：显示固定的医院信息（只读），不能选择 -->
+          <div v-if="currentUserRoleType === 'hospital'" class="hospital-info-readonly" style="
             padding: 10px 15px;
             background-color: #f5f7fa;
             border: 1px solid #dcdfe6;
             border-radius: 4px;
             color: #606266;
             font-size: 14px;
+            text-align: left;
           ">
-            <div v-if="currentUserHospital && currentUserHospitalName" style="line-height: 1.8;">
-              <div><strong>医院编码：</strong>{{ currentUserHospital }}</div>
-              <div><strong>医院名称：</strong>{{ currentUserHospitalName }}</div>
-              <div v-if="currentUserHospitalLevel"><strong>医院等级：</strong>{{ currentUserHospitalLevel }}</div>
-            </div>
-            <div v-else style="color: #909399;">
-              <i class="el-icon-loading"></i> 正在加载医院信息...
+            <div v-if="currentUserHospital && currentUserHospitalName" style="line-height: 1.8; text-align: left;">
+              <div style="text-align: left;">{{ currentUserHospital }} {{ currentUserHospitalName }}</div>
             </div>
           </div>
-          <!-- 系统管理员/医保局管理员：显示可选择的医院下拉框 -->
+          <!-- 系统管理员：显示可选择的医院下拉框 -->
           <el-select 
             v-else
             v-model="registerForm.hospitalCode" 
@@ -134,7 +129,7 @@ export default {
       registerForm: {
         username: '',
         password: '',
-        groupNames: [],
+        groupNames: '',
         hospitalCode: ''
       },
       rules: {
@@ -147,8 +142,7 @@ export default {
           { min: 8, message: '密码长度不能少于8位', trigger: 'blur' }
         ],
         groupNames: [
-          { required: true, message: '请选择角色', trigger: 'change' },
-          { type: 'array', min: 1, message: '至少选择一个角色', trigger: 'change' }
+          { required: true, message: '请选择角色', trigger: 'change' }
         ],
         hospitalCode: [
           { validator: validateHospitalCode, trigger: 'change' }
@@ -160,61 +154,73 @@ export default {
       currentUserRole: '',
       currentUserHospital: null,
       currentUserHospitalName: '', // 当前用户所在医院名称
-      currentUserHospitalLevel: '' // 当前用户所在医院等级
+      currentUserHospitalLevel: '', // 当前用户所在医院等级
+      allRoles: [], // 所有角色列表（从后端获取）
+      currentUserRoleType: '', // 当前用户的角色类型
+      currentUserRoleLevel: '' // 当前用户的角色级别
     }
   },
   computed: {
-    // 根据当前用户角色，计算可用的角色选项
+    // 根据当前用户角色，计算可用的角色选项（从后端获取所有角色）
     availableGroupOptions() {
-      const role = this.currentUserRole
-      
-      if (role === 'Superuser') {
-        // superuser：后端 groups 为空的超级管理员，只用于创建核心管理员账号
-        return [
-          { label: '医保局管理员', value: 'Medical Insurance Administrator' },
-          { label: '医院管理员', value: 'Hospital Administrator' }
-        ]
-      } else if (role === 'System Administrator') {
-        // 系统管理员可以创建任何角色
-        return [
-          { label: '系统管理员', value: 'System Administrator' },
-          { label: '医保局管理员', value: 'Medical Insurance Administrator' },
-          { label: '医保局用户', value: 'Medical Insurance User' },
-          { label: '医院管理员', value: 'Hospital Administrator' },
-          { label: '医院用户', value: 'Hospital User' }
-        ]
-      } else if (role === 'Medical Insurance Administrator') {
-        // 医保局管理员只能创建医保局管理员或医保局用户
-        return [
-          { label: '医保局管理员', value: 'Medical Insurance Administrator' },
-          { label: '医保局用户', value: 'Medical Insurance User' }
-        ]
-      } else if (role === 'Hospital Administrator') {
-        // 医院管理员只能创建医院管理员或医院用户
-        return [
-          { label: '医院管理员', value: 'Hospital Administrator' },
-          { label: '医院用户', value: 'Hospital User' }
-        ]
+      // 如果还没有加载角色列表，返回空数组
+      if (!this.allRoles || this.allRoles.length === 0) {
+        return []
       }
       
-      return []
+      // 根据当前用户的角色类型过滤可选择的角色
+      let filteredRoles = this.allRoles
+      
+      // 如果是医院管理员，只能选择医院角色
+      if (this.currentUserRoleType === 'hospital') {
+        filteredRoles = this.allRoles.filter(r => r.role_type === 'hospital')
+      }
+      // 如果是医保管理员，只能选择医保角色
+      else if (this.currentUserRoleType === 'insurance') {
+        filteredRoles = this.allRoles.filter(r => r.role_type === 'insurance')
+      }
+      // 系统管理员（Superuser）可以选择所有角色
+      
+      // 返回过滤后的角色，label 包含角色名称和角色类型
+      return filteredRoles.map(r => {
+        let roleTypeText = ''
+        if (r.role_type === 'insurance') {
+          roleTypeText = '（医保角色）'
+        } else if (r.role_type === 'hospital') {
+          roleTypeText = '（医院角色）'
+        }
+        
+        return {
+          label: `${r.name}${roleTypeText}`,
+          value: r.name
+        }
+      })
     },
     // 判断是否需要医院编码
     needsHospitalCode() {
-      // 如果是医院管理员，不需要显示医院编码字段（后端会自动使用创建者的医院编码）
-      if (this.isHospitalAdmin) {
+      if (!this.registerForm.groupNames) {
         return false
       }
       
-      if (!this.registerForm.groupNames || this.registerForm.groupNames.length === 0) {
+      // 检查选择的角色是否是医院角色
+      const selectedRole = this.allRoles.find(r => r.name === this.registerForm.groupNames)
+      if (!selectedRole || selectedRole.role_type !== 'hospital') {
         return false
       }
-      // 如果选择的角色中包含医院相关角色，则需要医院编码
-      const needs = this.registerForm.groupNames.some(group => 
-        group === 'Hospital Administrator' || group === 'Hospital User'
-      )
-      console.log('角色检查，是否需要医院编码:', needs, '选择的角色:', this.registerForm.groupNames)
-      return needs
+      
+      // 如果是医院管理员，不需要显示医院编码字段（后端会自动使用创建者的医院编码）
+      // 但需要确保医院编码已设置
+      if (this.currentUserRoleType === 'hospital') {
+        return false
+      }
+      
+      // 系统管理员选择医院角色时，需要显示医院选择下拉框
+      return true
+    },
+    // 判断是否是系统管理员（Superuser）
+    isSystemAdmin() {
+      const role = this.currentUserRole
+      return role === 'Superuser'
     },
     // 判断医院编码是否只读（医院管理员只能使用自己的医院编码）
     isHospitalCodeReadonly() {
@@ -243,21 +249,38 @@ export default {
       return
     }
     
-    // 获取当前用户角色
+    // 获取当前用户角色、角色级别、角色类型、医院编码和医院名称
     this.currentUserRole = this.$store.getters.role
-    console.log('当前用户角色:', this.currentUserRole)
+    this.currentUserRoleLevel = this.$store.getters.roleLevel
+    this.currentUserRoleType = this.$store.getters.roleType
+    this.currentUserHospital = this.$store.getters.hospital
+    this.currentUserHospitalName = this.$store.getters.hospitalName
+    console.log('当前用户角色:', this.currentUserRole, '角色级别:', this.currentUserRoleLevel, '角色类型:', this.currentUserRoleType, '医院编码:', this.currentUserHospital, '医院名称:', this.currentUserHospitalName)
     
-    // 检查权限
-    if (this.currentUserRole !== 'Superuser' &&
-        this.currentUserRole !== 'System Administrator' && 
-        this.currentUserRole !== 'Medical Insurance Administrator' && 
-        this.currentUserRole !== 'Hospital Administrator') {
+    // 检查权限：只有 role_level === 'admin' 的管理员才能创建用户
+    if (this.currentUserRoleLevel !== 'admin' && this.currentUserRole !== 'Superuser') {
       this.$message.warning('您没有创建用户的权限')
       this.$router.push('/main/workspace')
       return
     }
     
-    // 医院管理员不需要获取医院信息（后端会自动使用创建者的医院编码）
+    // 加载所有角色列表
+    this.fetchAllRoles()
+    
+    // 如果是医院管理员，确保医院编码已设置
+    if (this.currentUserRoleType === 'hospital') {
+      if (!this.currentUserHospital && this.$store.getters.hospital) {
+        this.currentUserHospital = this.$store.getters.hospital
+      }
+      if (!this.currentUserHospitalName && this.$store.getters.hospitalName) {
+        this.currentUserHospitalName = this.$store.getters.hospitalName
+      }
+      // 如果医院编码和名称都有了，自动设置到表单
+      if (this.currentUserHospital) {
+        this.registerForm.hospitalCode = this.currentUserHospital
+      }
+    }
+    
     // 其他角色，如果需要医院编码选项，获取医院列表
     if (!this.isHospitalAdmin) {
       // 其他角色，如果需要医院编码选项，获取医院列表
@@ -286,6 +309,52 @@ export default {
     }
   },
   methods: {
+    // 获取所有角色列表
+    async fetchAllRoles() {
+      try {
+        const accessToken = this.$store.getters.accessToken
+        if (!accessToken) {
+          console.error('未获取到访问令牌，无法获取角色列表')
+          this.$message.error('未登录，请先登录')
+          return
+        }
+        
+        const response = await fetch('/api/v1/roles/list_all/', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`
+          }
+        })
+        
+        if (!response.ok) {
+          console.error('获取角色列表失败，HTTP状态:', response.status)
+          this.$message.warning('获取角色列表失败，请刷新页面重试')
+          return
+        }
+        
+        const data = await response.json()
+        console.log('角色列表 API 响应:', data)
+        
+        // 处理统一响应格式 { code, message, data: { count, results } }
+        if (data.code === 0 && data.data) {
+          const rolesArray = data.data.results || []
+          // 过滤掉 system 类型的角色
+          this.allRoles = rolesArray.filter(role => role.role_type !== 'system')
+          console.log('获取所有角色列表成功，共', this.allRoles.length, '个角色:', this.allRoles)
+        } else if (data.results) {
+          // 兼容旧格式：直接返回 { results: [...] }
+          const rolesArray = data.results || []
+          this.allRoles = rolesArray.filter(role => role.role_type !== 'system')
+          console.log('获取所有角色列表成功（旧格式），共', this.allRoles.length, '个角色:', this.allRoles)
+        } else {
+          console.error('获取角色列表失败，响应格式不正确:', data)
+          this.$message.warning('获取角色列表失败，请刷新页面重试')
+        }
+      } catch (error) {
+        console.error('获取角色列表错误:', error)
+        this.$message.error('获取角色列表失败，请稍后重试')
+      }
+    },
     // 格式化错误消息为中文
     formatErrorMessage(errorMessage) {
       if (!errorMessage) return errorMessage
@@ -589,14 +658,28 @@ export default {
     },
     // 角色变化处理
     handleGroupNamesChange() {
-      // 如果选择了医院角色，需要获取医院列表
+      // 如果选择了医院角色，需要获取医院列表（仅系统管理员）
       if (this.needsHospitalCode && this.availableHospitals.length === 0) {
         this.fetchHospitals()
       }
       
-      // 如果是医院管理员，自动设置医院编码
-      if (this.isHospitalAdmin && this.currentUserHospital) {
-        this.registerForm.hospitalCode = this.currentUserHospital
+      // 如果是医院管理员，自动设置医院编码（写死的，只能是自己医院）
+      if (this.currentUserRoleType === 'hospital') {
+        const hospitalCode = this.currentUserHospital || this.$store.getters.hospital
+        if (hospitalCode) {
+          this.registerForm.hospitalCode = hospitalCode
+          console.log('医院管理员创建用户，自动设置医院编码:', hospitalCode)
+        } else {
+          // 如果还没有加载医院信息，尝试获取
+          if (!this.currentUserHospital) {
+            this.fetchHospitalDetail(this.$store.getters.hospital)
+          }
+        }
+      }
+      
+      // 如果是系统管理员且选择了非医院角色，清空之前可能选择的医院编码
+      if (this.isSystemAdmin && !this.needsHospitalCode) {
+        this.registerForm.hospitalCode = ''
       }
     },
     handleRegister() {
@@ -606,24 +689,28 @@ export default {
           const requestData = {
             username: this.registerForm.username,
             password: this.registerForm.password,
-            group_names: this.registerForm.groupNames
+            group_names: [this.registerForm.groupNames],
+            // 超级用户创建的用户 role_level 是 admin，其他管理员创建的用户 role_level 是 user
+            role_level: this.isSystemAdmin ? 'admin' : 'user'
           }
           
           // 如果选择了医院角色，添加医院编码
           if (this.needsHospitalCode) {
-            // 系统管理员或医保局管理员需要选择医院编码
+            // 系统管理员需要选择医院编码
             if (!this.registerForm.hospitalCode || this.registerForm.hospitalCode.trim() === '') {
               this.$message.error('请选择医院编码')
               return false
             }
             requestData.hospital_code = this.registerForm.hospitalCode
-          } else if (this.isHospitalAdmin) {
-            // 医院管理员：后端会自动使用创建者的医院编码，不需要前端传递
-            // 但为了确保，我们可以从 store 获取并传递（如果后端需要的话）
-            const hospitalCode = this.$store.getters.hospital
+          } else if (this.currentUserRoleType === 'hospital') {
+            // 医院管理员：使用自己的医院编码
+            const hospitalCode = this.currentUserHospital || this.$store.getters.hospital
             if (hospitalCode) {
               requestData.hospital_code = hospitalCode
               console.log('医院管理员创建用户，使用医院编码:', hospitalCode)
+            } else {
+              this.$message.error('无法获取医院编码，请刷新页面重试')
+              return false
             }
           }
           
@@ -727,7 +814,7 @@ export default {
                 this.registerForm = {
                   username: '',
                   password: '',
-                  groupNames: [],
+                  groupNames: '',
                   hospitalCode: ''
                 }
                 this.$refs.registerForm.resetFields()

@@ -131,9 +131,13 @@ export function hasRoutePermission(role, routeName) {
   }
 
   // 创建用户页面需要特殊权限检查
+  // 注意：这里需要从 store 获取 role_level 来判断，但为了保持函数签名，我们通过其他方式检查
+  // 实际检查会在组件中进行
   if (routeName === 'create-user') {
     // 只有系统管理员、医保局管理员、医院管理员可以创建用户
+    // 但实际权限检查需要 role_level === 'admin'，这会在组件中检查
     return role === 'System Administrator' || 
+           role === 'Superuser' ||
            role === 'Medical Insurance Administrator' || 
            role === 'Hospital Administrator'
   }

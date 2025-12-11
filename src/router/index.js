@@ -197,18 +197,32 @@ router.beforeEach((to, from, next) => {
       }
       
       // 如果有路由名称，检查权限
-      if (routeName && !hasRoutePermission(userRole, routeName)) {
-        // 没有权限，根据角色重定向到合适的页面
-        console.warn(`用户 ${store.getters.username} (角色: ${userRole}) 没有权限访问 ${routeName}`)
-        // 医院管理员和医院用户重定向到预警列表，其他角色重定向到工作台
-        if (userRole === 'Hospital Administrator' || userRole === 'Hospital User') {
-          next('/main/warning-base')
-        } else {
-          next('/main/workspace')
+      if (routeName) {
+        // 创建用户页面：需要检查 role_level === 'admin' 或 Superuser
+        if (routeName === 'create-user') {
+          const roleLevel = store.getters.roleLevel
+          if (roleLevel !== 'admin' && userRole !== 'Superuser') {
+            console.warn(`用户 ${store.getters.username} (角色: ${userRole}, 级别: ${roleLevel}) 没有权限访问 ${routeName}`)
+            if (userRole === 'Hospital Administrator' || userRole === 'Hospital User' || (roleLevel && roleLevel !== 'admin')) {
+              next('/main/warning-base')
+            } else {
+              next('/main/workspace')
+            }
+            return
+          }
+        } else if (!hasRoutePermission(userRole, routeName)) {
+          // 其他页面使用原有的权限检查
+          console.warn(`用户 ${store.getters.username} (角色: ${userRole}) 没有权限访问 ${routeName}`)
+          // 医院管理员和医院用户重定向到预警列表，其他角色重定向到工作台
+          if (userRole === 'Hospital Administrator' || userRole === 'Hospital User') {
+            next('/main/warning-base')
+          } else {
+            next('/main/workspace')
+          }
+          return
         }
-      } else {
-        next()
       }
+      next()
     } else {
       // 未登录用户尝试访问受保护页面，重定向到登录页
       next({

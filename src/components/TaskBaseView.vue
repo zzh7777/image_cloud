@@ -70,9 +70,9 @@
           v-loading="loading"
           element-loading-text="加载中..."
         >
-          <el-table-column prop="taskId" label="任务ID" min-width="180" align="left"></el-table-column>
-          <el-table-column prop="taskName" label="任务名称" min-width="180" align="left"></el-table-column>
-          <el-table-column prop="modelName" label="调用模型" min-width="200" align="left"></el-table-column>
+          <el-table-column prop="taskId" label="任务ID" min-width="90" align="left"></el-table-column>
+          <el-table-column prop="taskName" label="任务名称" min-width="270" align="left"></el-table-column>
+          <el-table-column prop="modelName" label="调用模型" min-width="270" align="left"></el-table-column>
           <!-- 列表中展示外部状态（基于 external_status 映射的中文） -->
           <el-table-column label="外部状态" min-width="120" align="left">
             <template slot-scope="scope">
@@ -84,8 +84,8 @@
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="dataCount" label="累计监测数据条数" min-width="180" align="left"></el-table-column>
-          <el-table-column prop="createTime" label="创建时间" min-width="180" align="left">
+          <el-table-column prop="dataCount" label="累计监测数据条数" min-width="120" align="left"></el-table-column>
+          <el-table-column prop="createTime" label="创建时间" min-width="140" align="left">
             <template slot-scope="scope">
               {{ formatDateTime(scope.row.createTime) }}
             </template>

@@ -67,20 +67,20 @@
           border
           v-loading="loading"
           element-loading-text="加载中...">
-          <el-table-column prop="task_code" label="任务编码" min-width="180" align="left"></el-table-column>
-          <el-table-column prop="task_name" label="任务名称" min-width="160" align="left"></el-table-column>
-          <el-table-column prop="completion_time" label="任务完成时间" min-width="180" align="left">
+          <el-table-column prop="task_code" label="任务编码" min-width="140" align="left"></el-table-column>
+          <el-table-column prop="task_name" label="任务名称" min-width="250" align="left"></el-table-column>
+          <el-table-column prop="completion_time" label="任务完成时间" min-width="160" align="left">
             <template slot-scope="scope">
               {{ formatDateTime(scope.row.completion_time) }}
             </template>
           </el-table-column>
-          <el-table-column prop="total_warning_count" label="预警总条数" min-width="130" align="left"></el-table-column>
-          <el-table-column prop="pending_initial_review_count" label="待初审条数" min-width="130" align="left"></el-table-column>
-          <el-table-column prop="hospital_review_count" label="医院复核条数" min-width="140" align="left"></el-table-column>
-          <el-table-column prop="pending_final_review_count" label="待终审条数" min-width="130" align="left"></el-table-column>
-          <el-table-column prop="final_reviewed_count" label="已终审条数" min-width="130" align="left"></el-table-column>
-          <el-table-column prop="confirmed_violation_count" label="明确违规条数" min-width="140" align="left"></el-table-column>
-          <el-table-column prop="positive_rate" label="阳性率" min-width="120" align="left">
+          <el-table-column prop="total_warning_count" label="预警总条数" min-width="110" align="left"></el-table-column>
+          <el-table-column prop="pending_initial_review_count" label="待初审条数" min-width="110" align="left"></el-table-column>
+          <el-table-column prop="hospital_review_count" label="医院复核条数" min-width="110" align="left"></el-table-column>
+          <el-table-column prop="pending_final_review_count" label="待终审条数" min-width="110" align="left"></el-table-column>
+          <el-table-column prop="final_reviewed_count" label="已终审条数" min-width="110" align="left"></el-table-column>
+          <el-table-column prop="confirmed_violation_count" label="明确违规条数" min-width="110" align="left"></el-table-column>
+          <el-table-column prop="positive_rate" label="阳性率" min-width="110" align="left">
             <template slot-scope="scope">
               <span :style="{ color: getPositiveRateColor(scope.row.positive_rate), fontWeight: 'bold' }">
                 {{ formatPositiveRate(scope.row.positive_rate) }}
