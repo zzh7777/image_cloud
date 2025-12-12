@@ -124,8 +124,8 @@
           <!-- 流程时间线 -->
           <el-timeline>
             <!-- 初审 -->
+            <!-- 只要有 list_alert_detail 权限，就能看到审核流程，不依赖审核权限 -->
             <el-timeline-item
-              v-if="showFirstReview || canDoInitialReview"
               :timestamp="showFirstReview ? formatDateTime(reviewProcess.firstReview.time) : '待审核'"
               placement="top"
               :color="showFirstReview ? '#67C23A' : '#E4E7ED'"
@@ -180,10 +180,11 @@
           </el-card>
         </el-timeline-item>
 
-            <!-- 医院复核（仅在初审结果为"明确违规"或"疑似违规"时显示） -->
-        <el-timeline-item
-              v-if="(showHospitalReview || canDoHospitalReview) && !isFirstReviewNoViolation"
-              :timestamp="reviewProcess.hospitalReview.time ? formatDateTime(reviewProcess.hospitalReview.time) : '待复核'"
+            <!-- 医院复核 -->
+            <!-- 只要有 list_alert_detail 权限，就能看到审核流程，不依赖审核权限 -->
+            <el-timeline-item
+              v-if="!isFirstReviewNoViolation"
+              :timestamp="getHospitalReviewTimestamp"
           placement="top"
               :color="reviewProcess.hospitalReview.time ? '#67C23A' : '#E4E7ED'"
         >
@@ -242,7 +243,7 @@
               <div class="info-row">
                 <span class="label">复核结果：</span>
                     <span v-if="reviewProcess.hospitalReview.result">{{ reviewProcess.hospitalReview.result }}</span>
-                <span v-else class="empty-text">待复核</span>
+                <span v-else class="empty-text">{{ getHospitalReviewStatusText }}</span>
               </div>
               <div class="info-row" v-if="reviewProcess.hospitalReview.appealReason">
                 <span class="label">申诉理由：</span>
@@ -271,8 +272,9 @@
         </el-timeline-item>
 
             <!-- 终审（仅在初审结果为"明确违规"或"疑似违规"时显示） -->
+            <!-- 只要有 list_alert_detail 权限，就能看到审核流程，不依赖审核权限 -->
         <el-timeline-item
-              v-if="(showFinalReview || canDoFinalReview) && !isFirstReviewNoViolation"
+              v-if="!isFirstReviewNoViolation"
               :timestamp="reviewProcess.finalReview.time ? formatDateTime(reviewProcess.finalReview.time) : '待终审'"
           placement="top"
               :color="reviewProcess.finalReview.time ? '#67C23A' : '#E4E7ED'"
@@ -778,12 +780,43 @@ export default {
       return !!this.reviewProcess.firstReview.time
     },
     // 判断是否显示医院复核卡片
+    // 只要有 list_alert_detail 权限，就能看到审核流程，不依赖审核权限
     showHospitalReview() {
       // 如果已复核，显示
       if (this.reviewProcess.hospitalReview.time) {
         return true
       }
-      // 如果初审结果是"明确违规"或"疑似违规"，且已初审，则可以显示（待复核状态）
+      // 如果已初审，且初审结果是"明确违规"或"疑似违规"，可以显示（待复核状态）
+      const firstReviewResult = this.reviewProcess.firstReview.result
+      if (this.showFirstReview && 
+          (firstReviewResult === '明确违规' || firstReviewResult === '疑似违规' ||
+           String(firstReviewResult || '').toLowerCase() === 'confirmed_violation' ||
+           String(firstReviewResult || '').toLowerCase() === 'suspected_violation')) {
+        return true
+      }
+      // 即使没有初审，只要有 list_alert_detail 权限，也应该显示（显示"待初审"状态）
+      // 这里返回 true，让所有用户都能看到医院复核卡片
+      return true
+    },
+    // 判断是否显示医院复核卡片（包括没有初审的情况）
+    canShowHospitalReviewCard() {
+      // 如果已复核，显示
+      if (this.reviewProcess.hospitalReview.time) {
+        return true
+      }
+      // 检查是否有复核权限
+      const role = this.$store.getters.role
+      const permissions = this.$store.getters.permissions || []
+      const hasPermission = role === 'Superuser' || 
+                            role === 'System Administrator' || 
+                            permissions.includes('warning.review_hospital')
+      
+      // 如果有复核权限，即使没有初审也显示（显示"待初审"状态）
+      if (hasPermission) {
+        return true
+      }
+      
+      // 如果已初审，且初审结果是"明确违规"或"疑似违规"，可以显示
       const firstReviewResult = this.reviewProcess.firstReview.result
       if (this.showFirstReview && 
           (firstReviewResult === '明确违规' || firstReviewResult === '疑似违规')) {
@@ -791,7 +824,35 @@ export default {
       }
       return false
     },
+    // 获取医院复核的时间戳显示文本
+    getHospitalReviewTimestamp() {
+      if (this.reviewProcess.hospitalReview.time) {
+        return this.formatDateTime(this.reviewProcess.hospitalReview.time)
+      }
+      // 如果没有初审，显示"待初审"，否则显示"待复核"
+      if (!this.showFirstReview) {
+        return '待初审'
+      }
+      // 如果初审结果是"明确违规"或"疑似违规"，显示"待复核"
+      const firstReviewResult = this.reviewProcess.firstReview.result
+      const resultStr = String(firstReviewResult || '').toLowerCase()
+      if (firstReviewResult === '明确违规' || firstReviewResult === '疑似违规' ||
+          resultStr === 'confirmed_violation' || resultStr === 'suspected_violation') {
+        return '待复核'
+      }
+      // 如果初审结果是"没有违规"，显示"待复核"（虽然不会显示这个卡片，因为 isFirstReviewNoViolation 为 true）
+      return '待复核'
+    },
+    // 获取医院复核状态文本
+    getHospitalReviewStatusText() {
+      // 如果没有初审，显示"待初审"
+      if (!this.showFirstReview) {
+        return '待初审'
+      }
+      return '待复核'
+    },
     // 判断是否显示终审卡片
+    // 只要有 list_alert_detail 权限，就能看到审核流程，不依赖审核权限
     showFinalReview() {
       // 如果已终审，显示
       if (this.reviewProcess.finalReview.time) {
@@ -799,54 +860,83 @@ export default {
       }
       // 如果初审结果是"明确违规"或"疑似违规"，且已复核，则可以显示（待终审状态）
       const firstReviewResult = this.reviewProcess.firstReview.result
+      const resultStr = String(firstReviewResult || '').toLowerCase()
       if (this.showFirstReview && 
-          (firstReviewResult === '明确违规' || firstReviewResult === '疑似违规') &&
+          (firstReviewResult === '明确违规' || firstReviewResult === '疑似违规' ||
+           resultStr === 'confirmed_violation' || resultStr === 'suspected_violation') &&
           this.reviewProcess.hospitalReview.time) {
         return true
       }
-      return false
+      // 即使没有满足上述条件，只要有 list_alert_detail 权限，也应该显示（显示"待终审"状态）
+      // 但需要确保初审结果不是"没有违规"（这个由 isFirstReviewNoViolation 控制）
+      return true
     },
     // 判断当前用户是否可以初审
     canInitialReview() {
       const role = this.$store.getters.role
-      console.log('当前用户角色:', role)
-      // 只有医保管理员可以初审（支持多种可能的角色名称格式）
-      const canReview = role === 'Medical Insurance Administrator' || 
-                        role === 'System Administrator' ||
-                        role === 'medical_admin' ||
-                        role === 'Medical Insurance Admin' ||
-                        role === '医保管理员'
-      console.log('是否可以初审:', canReview)
-      return canReview
+      const permissions = this.$store.getters.permissions || []
+      
+      // 超级管理员和系统管理员拥有所有权限
+      if (role === 'Superuser' || role === 'System Administrator') {
+        return true
+      }
+      
+      // 检查是否有 warning.review_initial 权限
+      const hasPermission = permissions.includes('warning.review_initial')
+      
+      console.log('是否可以初审 - 角色:', role, '权限:', permissions, '有权限:', hasPermission)
+      return hasPermission
     },
     // 判断当前用户是否可以医院复核
     canHospitalReview() {
       const role = this.$store.getters.role
-      // 只有医院管理员可以复核
-      return role === 'Hospital Administrator'
+      const permissions = this.$store.getters.permissions || []
+      
+      // 超级管理员和系统管理员拥有所有权限
+      if (role === 'Superuser' || role === 'System Administrator') {
+        return true
+      }
+      
+      // 检查是否有 warning.review_hospital 权限
+      const hasPermission = permissions.includes('warning.review_hospital')
+      
+      return hasPermission
     },
     // 判断当前用户是否可以终审
     canFinalReview() {
       const role = this.$store.getters.role
-      // 只有医保管理员可以终审（支持多种可能的角色名称格式）
-      return role === 'Medical Insurance Administrator' || 
-             role === 'System Administrator' ||
-             role === 'medical_admin' ||
-             role === 'Medical Insurance Admin' ||
-             role === '医保管理员'
+      const permissions = this.$store.getters.permissions || []
+      
+      // 超级管理员和系统管理员拥有所有权限
+      if (role === 'Superuser' || role === 'System Administrator') {
+        return true
+      }
+      
+      // 检查是否有 warning.review_final 权限
+      const hasPermission = permissions.includes('warning.review_final')
+      
+      return hasPermission
     },
     // 判断是否可以预览申诉材料
     canPreviewMaterials() {
       const role = this.$store.getters.role
-      // 只有医保管理员可以预览（在终审前）（支持多种可能的角色名称格式）
-      const isMedicalAdmin = role === 'Medical Insurance Administrator' || 
-                             role === 'System Administrator' ||
-                             role === 'medical_admin' ||
-                             role === 'Medical Insurance Admin' ||
-                             role === '医保管理员'
-      return isMedicalAdmin && 
-             this.showHospitalReview && 
-             !this.showFinalReview
+      const permissions = this.$store.getters.permissions || []
+      
+      // 超级管理员和系统管理员拥有所有权限
+      if (role === 'Superuser' || role === 'System Administrator') {
+        // 只要有医院复核信息就可以预览（无论是否已终审）
+        return this.showHospitalReview
+      }
+      
+      // 如果有 warning.review_hospital 权限（医院角色），就可以预览材料
+      // 或者有 warning.review_final 权限（医保角色），也可以预览材料（有终审权限就能看到初审结果和医院复核结果）
+      // 或者有 warning.preview_materials 权限也可以预览（向后兼容）
+      const hasPermission = permissions.includes('warning.review_hospital') || 
+                           permissions.includes('warning.review_final') ||
+                           permissions.includes('warning.preview_materials')
+      
+      // 有权限且医院复核信息存在就可以预览（有终审权限的用户即使已终审也能预览）
+      return hasPermission && this.showHospitalReview
     },
     // 判断当前状态是否可以初审
     canDoInitialReview() {
@@ -854,12 +944,63 @@ export default {
     },
     // 判断当前状态是否可以医院复核
     canDoHospitalReview() {
-      // 必须已初审，且初审结果是"明确违规"或"疑似违规"，且未复核
+      // 检查权限
+      const role = this.$store.getters.role
+      const permissions = this.$store.getters.permissions || []
+      const roleType = this.$store.getters.roleType
+      
+      // 检查是否是医院用户（通过 roleType 判断）
+      const isHospitalUser = roleType === 'hospital' || 
+                             role === 'Hospital Administrator' || 
+                             role === 'Hospital User'
+      
+      const hasPermission = role === 'Superuser' || 
+                            role === 'System Administrator' || 
+                            permissions.includes('warning.review_hospital')
+      
+      console.log('canDoHospitalReview 检查:', {
+        role,
+        roleType,
+        isHospitalUser,
+        hasPermission,
+        permissions,
+        showFirstReview: this.showFirstReview,
+        firstReviewResult: this.reviewProcess.firstReview.result,
+        hospitalReviewTime: this.reviewProcess.hospitalReview.time
+      })
+      
+      if (!hasPermission) {
+        console.log('没有复核权限')
+        return false
+      }
+      
+      // 如果已复核，不能再复核
+      if (this.reviewProcess.hospitalReview.time) {
+        console.log('已复核，不能再复核')
+        return false
+      }
+      
+      // 必须已初审，且初审结果是"明确违规"或"疑似违规"
       const firstReviewResult = this.reviewProcess.firstReview.result
-      return this.canHospitalReview && 
-             this.showFirstReview && 
-             !this.reviewProcess.hospitalReview.time &&
-             (firstReviewResult === '明确违规' || firstReviewResult === '疑似违规')
+      if (!this.showFirstReview) {
+        console.log('未初审，不能复核')
+        return false
+      }
+      
+      // 初审结果必须是"明确违规"或"疑似违规"（支持中英文）
+      const resultStr = String(firstReviewResult || '').toLowerCase()
+      const isValidResult = firstReviewResult === '明确违规' || 
+                           firstReviewResult === '疑似违规' ||
+                           resultStr === 'confirmed_violation' ||
+                           resultStr === 'suspected_violation'
+      
+      if (!isValidResult) {
+        console.log('初审结果不符合复核条件:', firstReviewResult, 'resultStr:', resultStr)
+        return false
+      }
+      
+      console.log('可以复核')
+      return true
     },
     // 判断当前状态是否可以终审
     canDoFinalReview() {
@@ -915,12 +1056,14 @@ export default {
     const recordId = this.$route.query.id || this.$route.query.recordId
     console.log('WarningRecordView mounted, 路由参数:', this.$route.query)
     console.log('WarningRecordView mounted, recordId:', recordId)
+    console.log('WarningRecordView mounted, 当前路由:', this.$route.path, this.$route.name)
     if (recordId) {
       this.recordId = recordId
       this.loadRecordData(recordId)
     } else {
-      this.errorMessage = '缺少记录ID参数'
-      console.error('缺少记录ID参数')
+      this.errorMessage = '缺少记录ID参数，请从预警列表页面点击"查看"按钮进入'
+      console.error('缺少记录ID参数，路由参数:', this.$route.query)
+      this.loading = false
     }
   },
   methods: {
@@ -994,7 +1137,7 @@ export default {
         
         // 检查响应码
         if (!response.ok || (data && data.code !== undefined && data.code !== 0)) {
-          let errorMessage = data?.message || `获取预警详情失败: ${response.status}`
+          let errorMessage = data?.message || data?.detail || `获取预警详情失败: ${response.status}`
           
           if (response.status === 404) {
             errorMessage = '预警详情不存在'
@@ -1004,6 +1147,14 @@ export default {
           
           console.error('接口返回错误:', response.status, errorMessage, data)
           this.errorMessage = errorMessage
+          this.loading = false
+          return
+        }
+        
+        // 如果响应成功但没有数据，也显示错误
+        if (!data || (!data.data && data.code === undefined)) {
+          console.error('响应成功但数据为空:', data)
+          this.errorMessage = '预警详情数据为空'
           this.loading = false
           return
         }

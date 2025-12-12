@@ -554,6 +554,9 @@ export default {
     this.fetchAllHospitals()
   },
   computed: {
+    userPermissions() {
+      return this.$store.getters.permissions || []
+    },
     dialogTitle() {
       return this.dialogType === 'create' ? '任务明细' : '任务明细'
     },
@@ -561,25 +564,25 @@ export default {
     canCreate() {
       const role = this.$store.getters.role
       const routeName = this.$route.name
-      return hasEditPermission(role, routeName, 'create')
+      return hasEditPermission(role, routeName, 'create', this.userPermissions)
     },
     // 检查是否有编辑权限
     canEdit() {
       const role = this.$store.getters.role
       const routeName = this.$route.name
-      return hasEditPermission(role, routeName, 'update')
+      return hasEditPermission(role, routeName, 'update', this.userPermissions)
     },
     // 检查是否有删除权限
     canDelete() {
       const role = this.$store.getters.role
       const routeName = this.$route.name
-      return hasEditPermission(role, routeName, 'delete')
+      return hasEditPermission(role, routeName, 'delete', this.userPermissions)
     },
-    // 检查是否有开始/停止权限
+    // 检查是否有开始/停止权限（control 权限）
     canStartStop() {
       const role = this.$store.getters.role
       const routeName = this.$route.name
-      return hasEditPermission(role, routeName, 'update')
+      return hasEditPermission(role, routeName, 'control', this.userPermissions)
     },
     // 任务创建时可供选择的模型列表（过滤掉禁用模型）
     availableModels() {

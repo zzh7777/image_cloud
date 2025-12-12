@@ -81,6 +81,12 @@ export default {
     userRoleLevel() {
       return this.$store.getters.roleLevel || ''
     },
+    userRoleType() {
+      return this.$store.getters.roleType || ''
+    },
+    userPermissions() {
+      return this.$store.getters.permissions || []
+    },
     // 根据权限过滤菜单项
     menuItems() {
       const allMenuItems = [
@@ -101,10 +107,11 @@ export default {
       return allMenuItems.filter(item => {
         // 创建用户页面：只有 role_level === 'admin' 的管理员或 Superuser 可以访问
         if (item.index === 'create-user') {
-          return this.userRoleLevel === 'admin' || this.userRole === 'Superuser'
+          const isAdminRole = this.userRoleLevel === 'admin' && ['system', 'insurance', 'hospital'].includes(this.userRoleType)
+          return this.userRoleLevel === 'super' || this.userRole === 'Superuser' || isAdminRole
         }
         // 其他页面使用原有的权限检查
-        return hasRoutePermission(this.userRole, item.index)
+        return hasRoutePermission(this.userRole, item.index, this.userPermissions, this.userRoleLevel, this.userRoleType)
       })
     }
   },

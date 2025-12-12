@@ -98,11 +98,13 @@
                       class="dialog-perm-item" 
                       v-for="p in (dialogGroupedPermissions[dialogActiveApp]||[])" 
                       :key="p.id"
+                      :class="{ 'disabled': isDialogPermDisabled(p) }"
                     >
                       <input 
                         type="checkbox" 
                         :checked="isDialogPermChecked(p.id)" 
-                        @change="toggleDialogPerm(p.id, $event)" 
+                        :disabled="isDialogPermDisabled(p)"
+                        @change="toggleDialogPerm(p.id, $event, p)" 
                       />
                       <span class="dialog-perm-name">{{ p.display_name || p.name || p.codename }}</span>
                     </label>
@@ -184,6 +186,12 @@ export default {
       }
       for (const k in map) {
         map[k] = map[k].sort((a, b) => {
+          // 优先排序：list 权限排在前面
+          const aIsList = this.isListPermission(a)
+          const bIsList = this.isListPermission(b)
+          if (aIsList && !bIsList) return -1
+          if (!aIsList && bIsList) return 1
+          // 如果都是 list 或都不是 list，按名称排序
           const an = (a.name || a.codename || '').toLowerCase()
           const bn = (b.name || b.codename || '').toLowerCase()
           return an.localeCompare(bn)
@@ -216,6 +224,12 @@ export default {
       }
       for (const k in map) {
         map[k] = map[k].sort((a, b) => {
+          // 优先排序：list 权限排在前面
+          const aIsList = this.isListPermission(a)
+          const bIsList = this.isListPermission(b)
+          if (aIsList && !bIsList) return -1
+          if (!aIsList && bIsList) return 1
+          // 如果都是 list 或都不是 list，按名称排序
           const an = (a.name || a.codename || '').toLowerCase()
           const bn = (b.name || b.codename || '').toLowerCase()
           return an.localeCompare(bn)
@@ -377,47 +391,46 @@ export default {
     getMedicalInsurancePermissions() {
       return [
         // 知识库管理
-        { id: 1, app_label: 'knowledgebase', codename: 'knowledgebase.list', name: '可以查看知识库列表、可以查看知识库详情、可以搜索知识库列表', display_name: '知识库-列表' },
-        { id: 2, app_label: 'knowledgebase', codename: 'knowledgebase.create', name: '可以创建知识库', display_name: '知识库-创建' },
-        { id: 3, app_label: 'knowledgebase', codename: 'knowledgebase.destroy', name: '可以删除知识库', display_name: '知识库-删除' },
-        { id: 4, app_label: 'knowledgebase', codename: 'knowledgebase.download', name: '可以下载知识库', display_name: '知识库-下载' },
+        { id: 1, app_label: 'knowledgebase', codename: 'knowledgebase.list', name: '可以查看知识库列表、可以搜索知识库列表(列表展示+搜索框)', display_name: '知识库-列表' },
+        { id: 2, app_label: 'knowledgebase', codename: 'knowledgebase.create', name: '可以创建知识库(创建按钮)', display_name: '知识库-创建' },
+        { id: 3, app_label: 'knowledgebase', codename: 'knowledgebase.destroy', name: '可以删除知识库(删除按钮)', display_name: '知识库-删除' },
+        { id: 4, app_label: 'knowledgebase', codename: 'knowledgebase.download', name: '可以下载知识库(查看详情按钮+下载按钮)', display_name: '知识库-下载' },
+        { id: 5, app_label: 'knowledgebase', codename: 'knowledgebase.preview', name: '可以预览知识库(查看详情按钮)', display_name: '知识库-查看详情' },
 
         // 规则库管理
-        { id: 5, app_label: 'businessrule', codename: 'businessrule.list', name: '可以查看规则库列表、可以查看规则库详情、可以搜索规则库列表', display_name: '规则库-列表' },
-        { id: 6, app_label: 'businessrule', codename: 'businessrule.create', name: '可以创建规则库', display_name: '规则库-创建' },
-        { id: 7, app_label: 'businessrule', codename: 'businessrule.update', name: '可以更新规则库', display_name: '规则库-更新' },
-        { id: 8, app_label: 'businessrule', codename: 'businessrule.destroy', name: '可以删除规则库', display_name: '规则库-删除' },
-        { id: 9, app_label: 'businessrule', codename: 'businessrule.set_status', name: '可以设置规则库状态', display_name: '规则库-设置状态' },
+        { id: 6, app_label: 'businessrule', codename: 'businessrule.list', name: '可以查看规则库列表、可以查看规则库详情、可以搜索规则库列表', display_name: '规则库-列表' },
+        { id: 7, app_label: 'businessrule', codename: 'businessrule.create', name: '可以创建规则库', display_name: '规则库-创建' },
+        { id: 8, app_label: 'businessrule', codename: 'businessrule.update', name: '可以更新规则库', display_name: '规则库-更新' },
+        { id: 9, app_label: 'businessrule', codename: 'businessrule.destroy', name: '可以删除规则库', display_name: '规则库-删除' },
+        { id: 10, app_label: 'businessrule', codename: 'businessrule.set_status', name: '可以设置规则库状态', display_name: '规则库-设置状态' },
 
         // 模型管理
-        { id: 10, app_label: 'rulemodel', codename: 'rulemodel.list', name: '可以查看模型列表、可以查看模型详情、可以搜索模型列表', display_name: '模型-列表' },
-        { id: 11, app_label: 'rulemodel', codename: 'rulemodel.create', name: '可以创建模型', display_name: '模型-创建' },
-        { id: 12, app_label: 'rulemodel', codename: 'rulemodel.update', name: '可以更新模型', display_name: '模型-更新' },
-        { id: 13, app_label: 'rulemodel', codename: 'rulemodel.destroy', name: '可以删除模型', display_name: '模型-删除' },
-        { id: 14, app_label: 'rulemodel', codename: 'rulemodel.set_status', name: '可以设置模型状态', display_name: '模型-设置状态' },
+        { id: 11, app_label: 'rulemodel', codename: 'rulemodel.list', name: '可以查看模型列表、可以查看模型详情、可以搜索模型列表', display_name: '模型-列表' },
+        { id: 12, app_label: 'rulemodel', codename: 'rulemodel.create', name: '可以创建模型', display_name: '模型-创建' },
+        { id: 13, app_label: 'rulemodel', codename: 'rulemodel.update', name: '可以更新模型', display_name: '模型-更新' },
+        { id: 14, app_label: 'rulemodel', codename: 'rulemodel.destroy', name: '可以删除模型', display_name: '模型-删除' },
+        { id: 15, app_label: 'rulemodel', codename: 'rulemodel.set_status', name: '可以设置模型状态', display_name: '模型-设置状态' },
 
         // 任务管理
-        { id: 15, app_label: 'batchtask', codename: 'batchtask.list', name: '可以查看任务列表、可以查看任务详情、可以搜索任务列表', display_name: '任务-列表' },
-        { id: 16, app_label: 'batchtask', codename: 'batchtask.create', name: '可以创建任务', display_name: '任务-创建' },
-        { id: 17, app_label: 'batchtask', codename: 'batchtask.update', name: '可以更新任务', display_name: '任务-更新' },
-        { id: 18, app_label: 'batchtask', codename: 'batchtask.destroy', name: '可以删除任务', display_name: '任务-删除' },
-        { id: 19, app_label: 'batchtask', codename: 'batchtask.control', name: '可以启动和停止任务', display_name: '任务-启停' },
+        { id: 16, app_label: 'batchtask', codename: 'batchtask.list', name: '可以查看任务列表、可以查看任务详情、可以搜索任务列表', display_name: '任务-列表' },
+        { id: 17, app_label: 'batchtask', codename: 'batchtask.create', name: '可以创建任务', display_name: '任务-创建' },
+        { id: 18, app_label: 'batchtask', codename: 'batchtask.update', name: '可以更新任务', display_name: '任务-更新' },
+        { id: 19, app_label: 'batchtask', codename: 'batchtask.destroy', name: '可以删除任务', display_name: '任务-删除' },
+        { id: 20, app_label: 'batchtask', codename: 'batchtask.control', name: '可以启动和停止任务', display_name: '任务-启停' },
 
         // 数据库管理
-        { id: 20, app_label: 'datarecord', codename: 'datarecord.list', name: '可以查看数据记录列表、可以查看数据记录详情、可以搜索数据记录列表', display_name: '数据记录-列表' },
-        { id: 21, app_label: 'datarecord', codename: 'datarecord.create', name: '可以创建数据记录', display_name: '数据记录-创建' },
-        { id: 22, app_label: 'datarecord', codename: 'datarecord.update', name: '可以更新数据记录', display_name: '数据记录-更新' },
-        { id: 23, app_label: 'datarecord', codename: 'datarecord.destroy', name: '可以删除数据记录', display_name: '数据记录-删除' },
+        { id: 21, app_label: 'datarecord', codename: 'datarecord.list', name: '可以查看数据记录列表、可以查看数据记录详情、可以搜索数据记录列表', display_name: '数据记录-列表' },
+        { id: 22, app_label: 'datarecord', codename: 'datarecord.create', name: '可以创建数据记录', display_name: '数据记录-创建' },
+        { id: 23, app_label: 'datarecord', codename: 'datarecord.update', name: '可以更新数据记录', display_name: '数据记录-更新' },
+        { id: 24, app_label: 'datarecord', codename: 'datarecord.destroy', name: '可以删除数据记录', display_name: '数据记录-删除' },
 
-        // 预警管理
-        { id: 24, app_label: 'warning', codename: 'warning.list_alert_manage', name: '可以查看预警管理列表、可以搜索预警管理列表', display_name: '预警-管理列表' },
+        // 预警管理（注意：list_alert_manage 应该放在第一位，因为它是 list 权限）
+        // 医保角色不需要单独的预览权限，有终审权限就可以查看初审结果和医院复核结果
+        { id: 33, app_label: 'warning', codename: 'warning.list_alert_manage', name: '可以查看预警管理列表、可以搜索预警管理列表', display_name: '预警-管理列表' },
+        { id: 32, app_label: 'warning', codename: 'warning.list_alert_list', name: '可以查看预警列表页面的列表、可以搜索预警列表页面的列表', display_name: '预警-列表页面' },
+        { id: 34, app_label: 'warning', codename: 'warning.list_alert_detail', name: '可以查看预警记录详情、可以预览预警截图、可以预览预警材料', display_name: '预警-记录详情' },
         { id: 25, app_label: 'warning', codename: 'warning.review_initial', name: '可以初审预警', display_name: '预警-初审' },
-        { id: 26, app_label: 'warning', codename: 'warning.review_final', name: '可以终审预警', display_name: '预警-终审' },
-        { id: 27, app_label: 'warning', codename: 'warning.review_hospital', name: '可以医院复核预警', display_name: '预警-医院复核' },
-        { id: 28, app_label: 'warning', codename: 'warning.preview_screenshot', name: '可以预览预警截图', display_name: '预警-截图预览' },
-        { id: 29, app_label: 'warning', codename: 'warning.preview_materials', name: '可以预览预警材料', display_name: '预警-材料预览' },
-        { id: 41, app_label: 'warning', codename: 'warning.list_alert_list', name: '可以查看预警列表页面的列表、可以搜索预警列表页面的列表', display_name: '预警-列表页面' },
-        { id: 42, app_label: 'warning', codename: 'warning.list_alert_detail', name: '可以查看预警记录详情', display_name: '预警-记录详情' },
+        { id: 26, app_label: 'warning', codename: 'warning.review_final', name: '可以终审预警、可以预览预警截图、可以预览预警材料', display_name: '预警-终审' },
 
         // 数据统计
         { id: 30, app_label: 'datastatistics', codename: 'datastatistics.list', name: '可以查看数据统计列表、可以搜索数据统计列表', display_name: '数据统计-列表' },
@@ -429,15 +442,11 @@ export default {
     // 获取医院管理员可管理的权限（使用后端权限ID）
     getHospitalPermissions() {
       return [
-        // 预警相关权限（医院角色）
-        { id: 24, app_label: 'warning', codename: 'warning.list_alert_manage', name: '可以查看预警管理列表、可以搜索预警管理列表', display_name: '预警-管理列表' },
-        { id: 25, app_label: 'warning', codename: 'warning.review_initial', name: '可以初审预警', display_name: '预警-初审' },
-        { id: 26, app_label: 'warning', codename: 'warning.review_final', name: '可以终审预警', display_name: '预警-终审' },
-        { id: 27, app_label: 'warning', codename: 'warning.review_hospital', name: '可以医院复核预警', display_name: '预警-医院复核' },
-        { id: 28, app_label: 'warning', codename: 'warning.preview_screenshot', name: '可以预览预警截图', display_name: '预警-截图预览' },
-        { id: 29, app_label: 'warning', codename: 'warning.preview_materials', name: '可以预览预警材料', display_name: '预警-材料预览' },
-        { id: 41, app_label: 'warning', codename: 'warning.list_alert_list', name: '可以查看预警列表页面的列表、可以搜索预警列表页面的列表', display_name: '预警-列表页面' },
-        { id: 42, app_label: 'warning', codename: 'warning.list_alert_detail', name: '可以查看预警记录详情', display_name: '预警-记录详情' }
+        // 预警相关权限（医院角色）- 只包含4个权限（预览权限已包含在复核权限中）
+        { id: 33, app_label: 'warning', codename: 'warning.list_alert_manage', name: '可以查看预警管理列表、可以搜索预警管理列表', display_name: '预警-管理列表' },
+        { id: 32, app_label: 'warning', codename: 'warning.list_alert_list', name: '可以查看预警列表页面的列表、可以搜索预警列表页面的列表', display_name: '预警-列表页面' },
+        { id: 34, app_label: 'warning', codename: 'warning.list_alert_detail', name: '可以查看预警记录详情', display_name: '预警-记录详情' },
+        { id: 27, app_label: 'warning', codename: 'warning.review_hospital', name: '可以医院复核预警、可以预览预警截图、可以预览预警材料', display_name: '预警-医院复核' }
       ]
     },
     // 选择角色
@@ -525,15 +534,185 @@ export default {
     isDialogPermChecked(id) {
       return new Set(this.dialogSelectedPerms).has(id)
     },
+    // 判断权限是否是 list 权限
+    isListPermission(permission) {
+      if (!permission || !permission.codename) return false
+      // 检查是否是 list 权限：以 .list 或 _list 结尾，或者是 list_alert_manage/list_alert_list/list_alert_detail
+      return permission.codename.endsWith('.list') || 
+             permission.codename.endsWith('_list') ||
+             permission.codename.endsWith('_manage') ||
+             permission.codename.endsWith('_detail')
+    },
+    // 判断权限是否应该被禁用
+    isDialogPermDisabled(permission) {
+      // 预警权限的特殊依赖关系
+      if (permission.app_label === 'warning') {
+        const codename = permission.codename
+        // 获取所有权限列表（根据角色类型）
+        const allPermissions = this.dialogRoleType === 'medical_insurance' 
+          ? this.getMedicalInsurancePermissions() 
+          : this.getHospitalPermissions()
+        
+        // 权限33（warning.list_alert_manage）是基础权限，永远可选
+        if (codename === 'warning.list_alert_manage') {
+          return false
+        }
+        
+        // 权限32（warning.list_alert_list）依赖于权限33
+        if (codename === 'warning.list_alert_list') {
+          const managePermission = allPermissions.find(p => p.codename === 'warning.list_alert_manage')
+          if (!managePermission) return true
+          return !this.isDialogPermChecked(managePermission.id)
+        }
+        
+        // 权限34（warning.list_alert_detail）依赖于权限32
+        if (codename === 'warning.list_alert_detail') {
+          const listPermission = allPermissions.find(p => p.codename === 'warning.list_alert_list')
+          if (!listPermission) return true
+          return !this.isDialogPermChecked(listPermission.id)
+        }
+        
+        // 医院角色的特殊依赖关系
+        if (this.dialogRoleType === 'hospital') {
+          // 权限27（预警-医院复核）依赖于权限34（预警-记录详情）
+          if (codename === 'warning.review_hospital') {
+            const detailPermission = allPermissions.find(p => p.codename === 'warning.list_alert_detail')
+            if (!detailPermission) return true
+            return !this.isDialogPermChecked(detailPermission.id)
+          }
+          
+          // 医院角色不再需要单独的预览权限（预览权限已包含在复核权限中）
+          // 权限28（预警-截图预览）、权限29（预警-材料预览）在医院角色中已移除
+        } else {
+          // 医保角色的依赖关系
+          // 权限25（预警-初审）、权限26（预警-终审）依赖于权限34（预警-记录详情）
+          // 医保角色不再有单独的预览权限（预览权限已包含在记录详情和终审权限中）
+          if (codename === 'warning.review_initial' || codename === 'warning.review_final') {
+            const detailPermission = allPermissions.find(p => p.codename === 'warning.list_alert_detail')
+            if (!detailPermission) return true
+            return !this.isDialogPermChecked(detailPermission.id)
+          }
+        }
+        
+        // 其他预警权限：需要检查权限33是否被选中
+        const managePermission = allPermissions.find(p => p.codename === 'warning.list_alert_manage')
+        if (!managePermission) return true
+        return !this.isDialogPermChecked(managePermission.id)
+      }
+      
+      // list 权限永远可选
+      if (this.isListPermission(permission)) {
+        return false
+      }
+      
+      // 非 list 权限：需要检查同 app_label 的 list 权限是否被选中
+      const appLabel = permission.app_label
+      if (!appLabel) return false
+      
+      // 获取所有权限列表（根据角色类型）
+      const allPermissions = this.dialogRoleType === 'medical_insurance' 
+        ? this.getMedicalInsurancePermissions() 
+        : this.getHospitalPermissions()
+      
+      // 找到同 app_label 的 list 权限
+      const listPermission = allPermissions.find(p => 
+        p.app_label === appLabel && this.isListPermission(p)
+      )
+      
+      if (!listPermission) {
+        // 如果没有 list 权限，则非 list 权限不可选（这种情况不应该发生）
+        return true
+      }
+      
+      // 如果 list 权限未被选中，则禁用
+      return !this.isDialogPermChecked(listPermission.id)
+    },
     // 切换弹窗中的权限
-    toggleDialogPerm(id, ev) {
+    toggleDialogPerm(id, ev, permission) {
       const checked = ev.target.checked
       const set = new Set(this.dialogSelectedPerms)
+      
       if (checked) {
         set.add(id)
       } else {
         set.delete(id)
+        
+        // 预警权限的特殊依赖关系处理
+        if (permission && permission.app_label === 'warning') {
+          const codename = permission.codename
+          // 获取所有权限列表（根据角色类型）
+          const allPermissions = this.dialogRoleType === 'medical_insurance' 
+            ? this.getMedicalInsurancePermissions() 
+            : this.getHospitalPermissions()
+          
+          // 如果取消的是权限33（warning.list_alert_manage），需要取消所有其他预警权限
+          if (codename === 'warning.list_alert_manage') {
+            allPermissions.forEach(p => {
+              if (p.app_label === 'warning' && p.codename !== 'warning.list_alert_manage') {
+                set.delete(p.id)
+              }
+            })
+          }
+          // 如果取消的是权限32（warning.list_alert_list），需要取消权限34及依赖权限34的权限
+          else if (codename === 'warning.list_alert_list') {
+            const detailPermission = allPermissions.find(p => p.codename === 'warning.list_alert_detail')
+            if (detailPermission) set.delete(detailPermission.id)
+            
+            if (this.dialogRoleType === 'hospital') {
+              // 医院角色：取消权限27（预览权限已包含在复核权限中，不需要单独处理）
+              const hospitalReviewPermission = allPermissions.find(p => p.codename === 'warning.review_hospital')
+              if (hospitalReviewPermission) set.delete(hospitalReviewPermission.id)
+            } else {
+              // 医保角色：取消依赖权限34的权限：权限25、26（预览权限已移除）
+              const dependentPerms = allPermissions.filter(p => 
+                p.app_label === 'warning' && (
+                  p.codename === 'warning.review_initial' ||
+                  p.codename === 'warning.review_final'
+                )
+              )
+              dependentPerms.forEach(p => set.delete(p.id))
+            }
+          }
+          // 如果取消的是权限34（warning.list_alert_detail），需要取消依赖权限34的权限
+          else if (codename === 'warning.list_alert_detail') {
+            if (this.dialogRoleType === 'hospital') {
+              // 医院角色：取消权限27（预览权限已包含在复核权限中，不需要单独处理）
+              const hospitalReviewPermission = allPermissions.find(p => p.codename === 'warning.review_hospital')
+              if (hospitalReviewPermission) set.delete(hospitalReviewPermission.id)
+            } else {
+              // 医保角色：取消依赖权限34的权限：权限25、26（预览权限已移除）
+              const dependentPerms = allPermissions.filter(p => 
+                p.app_label === 'warning' && (
+                  p.codename === 'warning.review_initial' ||
+                  p.codename === 'warning.review_final'
+                )
+              )
+              dependentPerms.forEach(p => set.delete(p.id))
+            }
+          }
+          // 如果取消的是权限27（warning.review_hospital），不需要取消其他权限（预览权限已包含在复核权限中）
+          // 医院角色不再有单独的预览权限，所以不需要处理
+        }
+        
+        // 如果取消的是 list 权限，需要取消同 app_label 的其他权限
+        if (permission && this.isListPermission(permission) && permission.app_label !== 'warning') {
+          const appLabel = permission.app_label
+          if (appLabel) {
+            // 获取所有权限列表（根据角色类型）
+            const allPermissions = this.dialogRoleType === 'medical_insurance' 
+              ? this.getMedicalInsurancePermissions() 
+              : this.getHospitalPermissions()
+            
+            // 找到同 app_label 的所有非 list 权限并取消选中
+            allPermissions.forEach(p => {
+              if (p.app_label === appLabel && !this.isListPermission(p)) {
+                set.delete(p.id)
+              }
+            })
+          }
+        }
       }
+      
       this.dialogSelectedPerms = Array.from(set)
     },
     // 确认角色弹窗
@@ -1457,6 +1636,15 @@ export default {
   background: #f9fafb;
 }
 
+.dialog-perm-item.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.dialog-perm-item.disabled:hover {
+  background: transparent;
+}
+
 .dialog-perm-item .dialog-perm-name {
   white-space: normal;
   word-break: normal;
@@ -1466,9 +1654,17 @@ export default {
   color: #606266;
 }
 
+.dialog-perm-item.disabled .dialog-perm-name {
+  color: #c0c4cc;
+}
+
 .dialog-perm-item input {
   accent-color: #409EFF;
   cursor: pointer;
+}
+
+.dialog-perm-item.disabled input {
+  cursor: not-allowed;
 }
 
 .dialog-perm-hint {

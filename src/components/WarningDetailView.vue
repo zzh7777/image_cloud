@@ -101,7 +101,14 @@
         </el-table-column>
         <el-table-column label="操作" width="100" fixed="right" align="center">
           <template slot-scope="scope">
-            <el-button type="text" size="small" @click="handleView(scope.row, scope.$index)">查看</el-button>
+            <el-button 
+              v-if="canViewAlertDetail" 
+              type="text" 
+              size="small" 
+              @click="handleView(scope.row, scope.$index)"
+            >
+              查看
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -529,6 +536,14 @@ export default {
       currentImageDetail: null,
       showMaterialDialog: false,
       currentMaterial: null
+    }
+  },
+  computed: {
+    // 判断是否可以查看预警记录详情（需要 warning.list_alert_detail 权限）
+    canViewAlertDetail() {
+      const permissions = this.$store.getters.permissions || []
+      // 检查是否有 warning.list_alert_detail 权限
+      return permissions.includes('warning.list_alert_detail')
     }
   },
   mounted() {

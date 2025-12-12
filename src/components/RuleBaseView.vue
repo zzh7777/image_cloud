@@ -351,6 +351,9 @@ export default {
     }
   },
   computed: {
+    userPermissions() {
+      return this.$store.getters.permissions || []
+    },
     dialogTitle() {
       return this.dialogType === 'create' ? '规则创建' : '规则编辑'
     },
@@ -358,25 +361,25 @@ export default {
     canCreate() {
       const role = this.$store.getters.role
       const routeName = this.$route.name
-      return hasEditPermission(role, routeName, 'create')
+      return hasEditPermission(role, routeName, 'create', this.userPermissions)
     },
     // 检查是否有编辑权限
     canEdit() {
       const role = this.$store.getters.role
       const routeName = this.$route.name
-      return hasEditPermission(role, routeName, 'update')
+      return hasEditPermission(role, routeName, 'update', this.userPermissions)
     },
     // 检查是否有删除权限
     canDelete() {
       const role = this.$store.getters.role
       const routeName = this.$route.name
-      return hasEditPermission(role, routeName, 'delete')
+      return hasEditPermission(role, routeName, 'delete', this.userPermissions)
     },
-    // 检查是否有状态更新权限（启用/停用）
+    // 检查是否有状态更新权限（启用/停用，set_status 权限）
     canUpdateStatus() {
       const role = this.$store.getters.role
       const routeName = this.$route.name
-      return hasEditPermission(role, routeName, 'update')
+      return hasEditPermission(role, routeName, 'set_status', this.userPermissions)
     }
   },
   mounted() {

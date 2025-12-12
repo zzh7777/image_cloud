@@ -153,6 +153,9 @@ router.beforeEach((to, from, next) => {
       // 检查权限
       const routeName = to.name
       const userRole = store.getters.role
+      const userPermissions = store.getters.permissions
+      const roleLevel = store.getters.roleLevel
+      const roleType = store.getters.roleType
       
       // personal-info 对所有已登录用户开放，不需要检查权限
       if (routeName === 'personal-info') {
@@ -200,8 +203,8 @@ router.beforeEach((to, from, next) => {
       if (routeName) {
         // 创建用户页面：需要检查 role_level === 'admin' 或 Superuser
         if (routeName === 'create-user') {
-          const roleLevel = store.getters.roleLevel
-          if (roleLevel !== 'admin' && userRole !== 'Superuser') {
+          const isAdminRole = roleLevel === 'admin' && ['system', 'insurance', 'hospital'].includes(roleType)
+          if (!(roleLevel === 'super' || userRole === 'Superuser' || isAdminRole)) {
             console.warn(`用户 ${store.getters.username} (角色: ${userRole}, 级别: ${roleLevel}) 没有权限访问 ${routeName}`)
             if (userRole === 'Hospital Administrator' || userRole === 'Hospital User' || (roleLevel && roleLevel !== 'admin')) {
               next('/main/warning-base')
@@ -210,7 +213,7 @@ router.beforeEach((to, from, next) => {
             }
             return
           }
-        } else if (!hasRoutePermission(userRole, routeName)) {
+        } else if (!hasRoutePermission(userRole, routeName, userPermissions, roleLevel, roleType)) {
           // 其他页面使用原有的权限检查
           console.warn(`用户 ${store.getters.username} (角色: ${userRole}) 没有权限访问 ${routeName}`)
           // 医院管理员和医院用户重定向到预警列表，其他角色重定向到工作台
@@ -243,9 +246,10 @@ router.beforeEach((to, from, next) => {
     if (store.getters.isLoggedIn) {
       // 检查是否有创建用户的权限
       const userRole = store.getters.role
-      if (userRole === 'System Administrator' || 
-          userRole === 'Medical Insurance Administrator' || 
-          userRole === 'Hospital Administrator') {
+      const roleLevel = store.getters.roleLevel
+      const roleType = store.getters.roleType
+      const isAdminRole = roleLevel === 'admin' && ['system', 'insurance', 'hospital'].includes(roleType)
+      if (roleLevel === 'super' || userRole === 'Superuser' || isAdminRole) {
         next()
       } else {
         // 没有权限，重定向到工作台

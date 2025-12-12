@@ -89,7 +89,13 @@
           </el-table-column>
           <el-table-column label="操作" width="120" fixed="right" align="center">
             <template slot-scope="scope">
-              <el-button type="text" @click="handleView(scope.row)">查看</el-button>
+              <el-button 
+                v-if="canViewAlertList" 
+                type="text" 
+                @click="handleView(scope.row)"
+              >
+                查看
+              </el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -271,6 +277,12 @@ export default {
     isHospitalUser() {
       const role = this.$store.getters.role
       return role === 'Hospital Administrator' || role === 'Hospital User'
+    },
+    // 判断是否可以查看预警列表（需要 warning.list_alert_list 权限）
+    canViewAlertList() {
+      const permissions = this.$store.getters.permissions || []
+      // 检查是否有 warning.list_alert_list 权限
+      return permissions.includes('warning.list_alert_list')
     }
   },
   mounted() {

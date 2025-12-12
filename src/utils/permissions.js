@@ -64,7 +64,7 @@ const PERMISSION_MATRIX = {
   },
 }
 
-// 路由名称到权限 key 的映射
+// 路由名称到权限 key 的映射（根据最新权限列表）
 const ROUTE_TO_PERMISSION_MAP = {
   'workspace': null, // 工作台，所有角色都可以访问
   'knowledge-base': 'knowledgebase',
@@ -72,26 +72,78 @@ const ROUTE_TO_PERMISSION_MAP = {
   'database': 'datarecord',
   'model-base': 'rulemodel',
   'task-base': 'batchtask',
-  'warning-base': 'earlywarningsummarylist',
-  'warning-detail': 'earlywarningdetaillist',
-  'warning-record': 'earlywarningdetailretrieve',
-  'data-base': 'datastatisticslist',
+  'warning-base': 'warning', // 预警管理主页面（图1），需要 warning.list_alert_manage 权限
+  'warning-detail': 'warning', // 预警列表页面（图2），需要 warning.list_alert_list 权限
+  'warning-record': 'warning', // 预警记录详情（图3），需要 warning.list_alert_detail 权限
+  'data-base': 'datastatistics',
   'log-base': 'logentry',
-  'permission-base': 'user', // 权限管理对应 user 管理
+  'permission-base': 'user', // 权限管理对应 user 管理，仅系统管理员
   'create-user': null, // 创建用户，需要特殊权限检查
   'personal-info': null, // 个人信息，所有角色都可以访问
+}
+
+// 路由名称到具体权限 action 的映射（用于页面访问检查）
+const ROUTE_TO_PERMISSION_ACTION_MAP = {
+  'knowledge-base': 'list',
+  'rule-base': 'list',
+  'database': 'list',
+  'model-base': 'list',
+  'task-base': 'list',
+  'warning-base': 'list_alert_manage', // 预警管理主页面（图1）
+  'warning-detail': 'list_alert_list', // 预警列表页面（图2）
+  'warning-record': 'list_alert_detail', // 预警记录详情（图3）
+  'data-base': 'list',
+  'log-base': 'list',
+}
+
+// 基于后端返回的权限字符串进行检查，权限格式：`resource.action`
+function hasPermissionAction(permissions = [], permissionKey, actions = []) {
+  if (!permissionKey) {
+    return false
+  }
+  if (!Array.isArray(permissions) || permissions.length === 0) {
+    return false
+  }
+  const normalizedKey = permissionKey.toLowerCase()
+  const actionList = Array.isArray(actions) ? actions : [actions].filter(Boolean)
+  if (actionList.length === 0) {
+    return false
+  }
+  return actionList.some(action => {
+    const actionName = (action || '').toLowerCase()
+    if (!actionName) return false
+    // 检查精确匹配：resource.action
+    const exactPermission = `${permissionKey}.${actionName}`
+    const normalizedPermission = `${normalizedKey}.${actionName}`
+    return permissions.includes(exactPermission) ||
+           permissions.includes(normalizedPermission) ||
+           permissions.includes(`${permissionKey}.__all__`) ||
+           permissions.includes(`${normalizedKey}.__all__`)
+  })
 }
 
 /**
  * 检查用户是否有权限访问某个路由
  * @param {string} role - 用户角色
  * @param {string} routeName - 路由名称
+ * @param {Array<string>} permissions - 后端返回的权限字符串列表
+ * @param {string} roleLevel - 角色级别
+ * @param {string} roleType - 角色类型
  * @returns {boolean} - 是否有权限
  */
-export function hasRoutePermission(role, routeName) {
-  // 权限管理页面只有 Superuser 可以访问
+export function hasRoutePermission(role, routeName, permissions = [], roleLevel = '', roleType = '') {
+  // 权限管理页面只有系统超管可以访问
   if (routeName === 'permission-base') {
-    return role === 'Superuser'
+    return roleLevel === 'super' || role === 'Superuser' || role === 'System Administrator'
+  }
+
+  // 创建用户页面由超级管理员或 admin 级别的 system/insurance/hospital 管理员访问
+  if (routeName === 'create-user') {
+    if (roleLevel === 'super' || role === 'Superuser') return true
+    if (roleLevel === 'admin' && ['system', 'insurance', 'hospital'].includes(roleType)) {
+      return true
+    }
+    return false
   }
 
   // Superuser 拥有所有权限，可以访问所有页面
@@ -130,24 +182,31 @@ export function hasRoutePermission(role, routeName) {
     // 其他页面可以访问（通过权限矩阵检查）
   }
 
-  // 创建用户页面需要特殊权限检查
-  // 注意：这里需要从 store 获取 role_level 来判断，但为了保持函数签名，我们通过其他方式检查
-  // 实际检查会在组件中进行
-  if (routeName === 'create-user') {
-    // 只有系统管理员、医保局管理员、医院管理员可以创建用户
-    // 但实际权限检查需要 role_level === 'admin'，这会在组件中检查
-    return role === 'System Administrator' || 
-           role === 'Superuser' ||
-           role === 'Medical Insurance Administrator' || 
-           role === 'Hospital Administrator'
-  }
-
   // 如果没有角色，返回 false（但 workspace 和 personal-info 已经在上面处理了）
   if (!role) {
     return false
   }
 
-  // 获取路由对应的权限 key
+  // 如果有后端权限列表，优先使用后端权限校验
+  if (Array.isArray(permissions) && permissions.length > 0) {
+    const permissionKey = ROUTE_TO_PERMISSION_MAP[routeName]
+    if (permissionKey === null) {
+      return true
+    }
+    if (!permissionKey) {
+      return false
+    }
+    // 获取该路由对应的具体权限 action
+    const requiredAction = ROUTE_TO_PERMISSION_ACTION_MAP[routeName]
+    if (requiredAction) {
+      // 使用路由对应的具体权限 action 进行检查
+      return hasPermissionAction(permissions, permissionKey, [requiredAction])
+    }
+    // 如果没有映射，默认检查 list 权限
+    return hasPermissionAction(permissions, permissionKey, ['list'])
+  }
+
+  // 获取路由对应的权限 key（旧逻辑回退）
   const permissionKey = ROUTE_TO_PERMISSION_MAP[routeName]
 
   // 如果路由不需要权限检查（如 workspace, personal-info），返回 true
@@ -171,9 +230,45 @@ export function hasRoutePermission(role, routeName) {
  * @param {string} role - 用户角色
  * @param {string} routeName - 路由名称
  * @param {string} action - 操作类型：'create', 'update', 'delete', 'edit' (edit 包括 create 和 update)
+ * @param {Array<string>} permissions - 后端返回的权限字符串列表
  * @returns {boolean} - 是否有编辑权限
  */
-export function hasEditPermission(role, routeName, action = 'edit') {
+export function hasEditPermission(role, routeName, action = 'edit', permissions = []) {
+  // 如果有后端权限列表，优先使用后端权限校验
+  if (Array.isArray(permissions) && permissions.length > 0) {
+    const permissionKey = ROUTE_TO_PERMISSION_MAP[routeName]
+    if (!permissionKey) {
+      return false
+    }
+    let actionsToCheck = []
+    if (action === 'edit') {
+      actionsToCheck = ['create', 'update', 'partial_update']
+    } else if (action === 'create') {
+      actionsToCheck = ['create']
+    } else if (action === 'update') {
+      actionsToCheck = ['update', 'partial_update']
+    } else if (action === 'delete') {
+      actionsToCheck = ['destroy', 'delete']
+    } else if (action === 'download') {
+      actionsToCheck = ['download']
+    } else if (action === 'preview') {
+      actionsToCheck = ['preview', 'download'] // preview 和 download 都可以查看详情
+    } else if (action === 'view') {
+      // 查看详情权限：可以是 download 或 preview
+      actionsToCheck = ['download', 'preview']
+    } else if (action === 'control') {
+      // 任务控制权限（启动/停止）
+      actionsToCheck = ['control']
+    } else if (action === 'set_status') {
+      // 设置状态权限
+      actionsToCheck = ['set_status']
+    } else if (action === 'list') {
+      // 列表权限
+      actionsToCheck = ['list']
+    }
+    return hasPermissionAction(permissions, permissionKey, actionsToCheck)
+  }
+
   // Superuser、System Administrator 和 Medical Insurance Administrator 拥有所有编辑权限
   if (role === 'Superuser' || role === 'System Administrator' || role === 'Medical Insurance Administrator') {
     return true
@@ -201,18 +296,18 @@ export function hasEditPermission(role, routeName, action = 'edit') {
     return false
   }
 
-  const permissions = rolePermissions[permissionKey]
+  const permissionsByRole = rolePermissions[permissionKey]
 
   // 检查具体的操作权限
   if (action === 'edit') {
     // edit 包括 create 和 update
-    return permissions.includes('create') || permissions.includes('update') || permissions.includes('partial_update')
+    return permissionsByRole.includes('create') || permissionsByRole.includes('update') || permissionsByRole.includes('partial_update')
   } else if (action === 'create') {
-    return permissions.includes('create')
+    return permissionsByRole.includes('create')
   } else if (action === 'update') {
-    return permissions.includes('update') || permissions.includes('partial_update')
+    return permissionsByRole.includes('update') || permissionsByRole.includes('partial_update')
   } else if (action === 'delete') {
-    return permissions.includes('destroy') || permissions.includes('delete')
+    return permissionsByRole.includes('destroy') || permissionsByRole.includes('delete')
   }
 
   return false
@@ -263,7 +358,20 @@ export function getAccessibleRoutes(role) {
 }
 
 /**
+ * 检查用户是否有查看详情权限（download 或 preview）
+ * @param {string} role - 用户角色
+ * @param {string} routeName - 路由名称
+ * @param {Array<string>} permissions - 后端返回的权限字符串列表
+ * @returns {boolean} - 是否有查看详情权限
+ */
+export function hasViewPermission(role, routeName, permissions = []) {
+  return hasEditPermission(role, routeName, 'view', permissions)
+}
+
+/**
  * 导出权限矩阵（用于调试）
  */
-export { PERMISSION_MATRIX, ROUTE_TO_PERMISSION_MAP }
+export { PERMISSION_MATRIX, ROUTE_TO_PERMISSION_MAP, ROUTE_TO_PERMISSION_ACTION_MAP }
+
+
 

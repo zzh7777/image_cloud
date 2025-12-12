@@ -12,7 +12,9 @@ export default new Vuex.Store({
       hospital: '', // 医院编码（仅医院角色有）
       hospital_name: '', // 医院名称（仅医院角色有）
       role_level: '', // 角色级别：super, admin, user
-      role_type: '' // 角色类型：system, insurance, hospital
+      role_type: '', // 角色类型：system, insurance, hospital
+      permissions: [], // 后端返回的操作权限字符串列表
+      roles: [] // 后端返回的角色原始列表，便于后续扩展
     },
     tokens: {
       access: '',
@@ -28,6 +30,8 @@ export default new Vuex.Store({
     hospitalName: state => state.user.hospital_name, // 获取医院名称
     roleLevel: state => state.user.role_level, // 获取角色级别
     roleType: state => state.user.role_type, // 获取角色类型
+    permissions: state => state.user.permissions || [], // 获取权限字符串列表
+    roles: state => state.user.roles || [], // 获取角色原始列表
     isLoggedIn: state => state.isLoggedIn,
     accessToken: state => state.tokens.access,
     refreshToken: state => state.tokens.refresh
@@ -42,7 +46,9 @@ export default new Vuex.Store({
         hospital: user.hospital || '',
         hospital_name: user.hospital_name || '',
         role_level: user.role_level || '',
-        role_type: user.role_type || ''
+        role_type: user.role_type || '',
+        permissions: Array.isArray(user.permissions) ? user.permissions : [],
+        roles: Array.isArray(user.roles) ? user.roles : []
       }
       state.isLoggedIn = true
       // 保存到localStorage
@@ -67,7 +73,9 @@ export default new Vuex.Store({
         hospital: '',
         hospital_name: '',
         role_level: '',
-        role_type: ''
+        role_type: '',
+        permissions: [],
+        roles: []
       }
       state.tokens = {
         access: '',
@@ -94,7 +102,9 @@ export default new Vuex.Store({
           hospital: parsedUser.hospital || '',
           hospital_name: parsedUser.hospital_name || '',
           role_level: parsedUser.role_level || '',
-          role_type: parsedUser.role_type || ''
+        role_type: parsedUser.role_type || '',
+        permissions: Array.isArray(parsedUser.permissions) ? parsedUser.permissions : [],
+        roles: Array.isArray(parsedUser.roles) ? parsedUser.roles : []
         }
         state.isLoggedIn = true
         console.log('Store initUser 从 localStorage 恢复:', state.user)
@@ -183,7 +193,9 @@ export default new Vuex.Store({
             hospital: userData.hospital || data.data.hospital_code || getters.hospital || '', // 保存医院编码
             hospital_name: data.data.hospital_name || getters.hospitalName || '', // 保存医院名称
             role_level: roleLevel || getters.roleLevel || '', // 保存角色级别
-            role_type: firstRole ? firstRole.role_type || '' : getters.roleType || '' // 保存角色类型
+            role_type: firstRole ? firstRole.role_type || '' : getters.roleType || '', // 保存角色类型
+            permissions: Array.isArray(data.data.permissions) ? data.data.permissions : getters.permissions || [],
+            roles: Array.isArray(rolesData) ? rolesData : getters.roles || []
           }
           commit('setUser', updatedUser)
           return updatedUser
@@ -203,7 +215,9 @@ export default new Vuex.Store({
             username: data.username,
             institutionType: data.institution_type || data.institutionType || '',
             role: userRole,
-            hospital: data.hospital || '' // 保存医院编码
+            hospital: data.hospital || '', // 保存医院编码
+            permissions: Array.isArray(data.permissions) ? data.permissions : [],
+            roles: Array.isArray(data.roles) ? data.roles : []
           }
           commit('setUser', updatedUser)
           return updatedUser

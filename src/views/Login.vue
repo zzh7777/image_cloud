@@ -222,7 +222,9 @@ export default {
                       hospital: userData.hospital || data.data.hospital_code || '', // 保存医院编码
                       hospital_name: data.data.hospital_name || '', // 保存医院名称
                       role_level: roleLevel || '', // 保存角色级别
-                      role_type: firstRole ? firstRole.role_type || '' : '' // 保存角色类型
+                      role_type: firstRole ? firstRole.role_type || '' : '', // 保存角色类型
+                      permissions: Array.isArray(data.data.permissions) ? data.data.permissions : [], // 保存后端权限
+                      roles: Array.isArray(rolesData) ? rolesData : [] // 保存原始角色列表
                     })
                     
                     console.log('登录成功，Token 已保存')

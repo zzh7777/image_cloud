@@ -38,7 +38,7 @@
       </div>
 
       <!-- 右侧：上传区域 -->
-      <div class="upload-section">
+      <div class="upload-section" v-if="canCreate">
         <el-upload
           ref="upload"
           action="#"
@@ -54,7 +54,6 @@
             slot="trigger" 
             type="primary"
             :loading="uploading"
-            :disabled="!canCreate"
             @click="handleUploadButtonClick"
           >上传文件</el-button>
         </el-upload>
@@ -78,10 +77,20 @@
           </template>
         </el-table-column>
         <el-table-column prop="uploader" label="上传人" width="200"></el-table-column>
-        <el-table-column label="操作" width="150" fixed="right" align="center">
+        <el-table-column label="操作" width="200" fixed="right" align="center">
           <template slot-scope="scope">
-            <el-button type="text" @click="handleView(scope.row)">查看详情</el-button>
-            <el-divider direction="vertical" v-if="canDelete"></el-divider>
+            <el-button 
+              type="text" 
+              @click="handleView(scope.row)"
+              v-if="canView"
+            >查看详情</el-button>
+            <el-divider direction="vertical" v-if="canView && canDownload"></el-divider>
+            <el-button 
+              type="text" 
+              @click="handleDownload(scope.row)"
+              v-if="canDownload"
+            >下载</el-button>
+            <el-divider direction="vertical" v-if="(canView || canDownload) && canDelete"></el-divider>
             <el-button 
               type="text" 
               style="color: #f56c6c" 
@@ -135,7 +144,6 @@
           <div v-else-if="fileError" class="error-container">
             <i class="el-icon-warning"></i>
             <p>{{ fileError }}</p>
-            <el-button type="primary" @click="tryDownloadFile">尝试下载文件</el-button>
           </div>
           <div v-else-if="isPdfFile" class="pdf-viewer">
             <iframe
@@ -175,7 +183,6 @@
               <i class="el-icon-warning" style="color: #fa8c16;"></i>
               <span style="margin-left: 8px; color: #fa8c16;">
                 此工作表共有 {{ currentSheetData.totalRows }} 行、{{ currentSheetData.totalCols }} 列，为提升性能，仅显示前 10 行。
-                <el-button type="text" size="small" @click="tryDownloadFile" style="padding: 0; margin-left: 5px;">下载完整文件</el-button>
               </span>
             </div>
             <div class="excel-table-container" style="width: 100%; max-width: 100%; max-height: 600px; overflow-x: auto; overflow-y: auto; border: 1px solid #dcdfe6; box-sizing: border-box;">
@@ -235,18 +242,15 @@
           <div v-else-if="isDocxFile" class="unsupported-viewer">
             <i class="el-icon-document"></i>
             <p>该文件格式（Word 文档）不支持在线预览</p>
-            <el-button type="primary" @click="tryDownloadFile">下载文件</el-button>
           </div>
           <div v-else class="unsupported-viewer">
             <i class="el-icon-document"></i>
             <p>该文件格式不支持在线预览</p>
-            <el-button type="primary" @click="tryDownloadFile">下载文件</el-button>
           </div>
         </div>
       </div>
       <div slot="footer" class="dialog-footer">
         <el-button @click="viewDialogVisible = false">关闭</el-button>
-        <el-button type="primary" @click="tryDownloadFile" v-if="viewingFile">下载文件</el-button>
       </div>
     </el-dialog>
 
@@ -336,17 +340,38 @@ export default {
     }
   },
   computed: {
+    userPermissions() {
+      return this.$store.getters.permissions || []
+    },
     // 检查是否有创建权限
     canCreate() {
       const role = this.$store.getters.role
       const routeName = this.$route.name
-      return hasEditPermission(role, routeName, 'create')
+      return hasEditPermission(role, routeName, 'create', this.userPermissions)
     },
     // 检查是否有删除权限
     canDelete() {
       const role = this.$store.getters.role
       const routeName = this.$route.name
-      return hasEditPermission(role, routeName, 'delete')
+      return hasEditPermission(role, routeName, 'delete', this.userPermissions)
+    },
+    // 检查是否有查看详情权限（download 或 preview）
+    canView() {
+      const role = this.$store.getters.role
+      const routeName = this.$route.name
+      return hasEditPermission(role, routeName, 'view', this.userPermissions)
+    },
+    // 检查是否有下载权限
+    canDownload() {
+      const role = this.$store.getters.role
+      const routeName = this.$route.name
+      return hasEditPermission(role, routeName, 'download', this.userPermissions)
+    },
+    // 检查是否有预览权限
+    canPreview() {
+      const role = this.$store.getters.role
+      const routeName = this.$route.name
+      return hasEditPermission(role, routeName, 'preview', this.userPermissions)
     },
     // 判断是否为 PDF 文件
     isPdfFile() {
@@ -1330,10 +1355,12 @@ export default {
         // 使用预览API获取文件内容
         // API: GET /api/v1/knowledge-base/{id}/preview/
         // 响应头包含 Content-Disposition: inline，浏览器会在页面中直接显示PDF
+        console.log('调用预览 API，文件 ID:', file.id, '权限:', this.userPermissions)
         let response = await fetch(`/api/v1/knowledge-base/${file.id}/preview/`, {
           method: 'GET',
           headers: {
-            'Authorization': `Bearer ${accessToken}`
+            'Authorization': `Bearer ${accessToken}`,
+            'Accept': 'application/pdf,application/octet-stream,*/*'
           }
         })
 
@@ -1389,10 +1416,9 @@ export default {
             this.fileLoading = false
             return
           } else if (response.status === 403) {
-            // 检查用户角色
-            const userRole = this.$store.getters.role
-            if (userRole === 'Medical Insurance Administrator') {
-              // Medical Insurance Administrator 有 download 权限，尝试使用下载 API 来获取文件内容
+            // 检查用户权限而不是角色
+            // 如果有 download 权限，尝试使用下载 API 来获取文件内容
+            if (this.canDownload) {
               console.log('预览 API 返回 403，尝试使用下载 API 获取文件内容')
               try {
                 const downloadResponse = await fetch(`/api/v1/knowledge-base/${file.id}/download/`, {
@@ -1451,8 +1477,11 @@ export default {
                 this.fileLoading = false
                 return
               }
-            } else if (userRole === 'Medical Insurance User') {
-              // Medical Insurance User 只有查看权限，没有 download 权限
+            } else if (this.canPreview) {
+              // 有 preview 权限但没有 download 权限
+              // 如果预览 API 返回 403，可能是后端权限检查有问题
+              console.warn('有 preview 权限但预览 API 返回 403，尝试其他方式获取文件')
+              
               // 尝试使用详情 API 返回的文件 URL（如果有）
               if (this.viewingFile && this.viewingFile.file_url) {
                 // 如果有文件 URL，尝试直接使用
@@ -1461,11 +1490,53 @@ export default {
                 this.fileError = null
                 return
               }
-              // 如果没有文件 URL，显示友好提示
-              this.fileError = '无法预览文件内容，但可以查看文件基本信息。如需查看完整内容，请联系管理员。'
+              
+              // 如果没有 file_url，尝试再次调用预览 API，但这次使用不同的方式
+              // 可能是后端权限检查的时机问题，或者需要特定的请求头
+              console.log('尝试使用 fetch 获取预览内容，即使返回 403 也可能获取到文件内容')
+              try {
+                // 再次尝试调用预览 API，使用更完整的请求头
+                const retryResponse = await fetch(`/api/v1/knowledge-base/${file.id}/preview/`, {
+                  method: 'GET',
+                  headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Accept': 'application/pdf,application/octet-stream,image/*,*/*',
+                    'Cache-Control': 'no-cache'
+                  }
+                })
+                
+                // 即使状态码是 403，也可能返回了文件内容（某些后端实现）
+                if (retryResponse.ok || retryResponse.status === 403) {
+                  const contentType = retryResponse.headers.get('content-type')
+                  // 检查响应是否包含文件内容（而不是错误 JSON）
+                  if (contentType && (contentType.includes('pdf') || contentType.includes('image') || contentType.includes('octet-stream'))) {
+                    // 获取文件内容
+                    const blob = await retryResponse.blob()
+                    const fileName = file.file_name.toLowerCase()
+                    
+                    if (fileName.endsWith('.pdf')) {
+                      this.fileViewUrl = window.URL.createObjectURL(blob)
+                      this.fileLoading = false
+                      this.fileError = null
+                      return
+                    } else if (fileName.match(/\.(jpg|jpeg|png|gif|bmp|webp)$/)) {
+                      this.fileViewUrl = window.URL.createObjectURL(blob)
+                      this.fileLoading = false
+                      this.fileError = null
+                      return
+                    }
+                  }
+                }
+              } catch (retryError) {
+                console.error('重试预览 API 失败:', retryError)
+              }
+              
+              // 如果以上都失败，显示明确的错误信息
+              this.fileError = '无法预览文件内容。您有预览权限，但后端可能未正确配置。请联系管理员检查后端权限设置。'
               this.fileLoading = false
               return
             } else {
+              // 既没有 preview 也没有 download 权限
               // 使用格式化函数处理权限错误
               if (data && data.code !== undefined && data.message) {
                 errorMessage = this.formatPermissionError(data.message, 'view')
