@@ -3,7 +3,7 @@
   <el-container style="min-height: 100vh; border: 1px solid #eee;">
     <!-- 头部区域 -->
     <el-header style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); line-height: 60px; position: relative; display: flex; justify-content: flex-end; align-items: center; padding: 0 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-      <h1 style="margin: 0; color: #fff; position: absolute; left: 50%; transform: translateX(-50%); font-weight: 500;">影像监管AI</h1>
+      <h1 style="margin: 0; color: #fff; position: absolute; left: 50%; transform: translateX(-50%); font-weight: 500;">医保影像云智能监管系统</h1>
       <div style="display: flex; align-items: center; gap: 15px;">
         <el-dropdown @command="handleUserCommand" trigger="click">
           <span style="color: #fff; font-size: 14px; cursor: pointer;">

@@ -1,7 +1,7 @@
 <template>
   <div class="login-container">
     <div class="login-card">
-      <h1 class="login-title">影像云AI监管平台 (MAGIC)</h1>
+      <h1 class="login-title">医保影像云智能监管系统</h1>
       
       <el-form 
         ref="loginForm" 
